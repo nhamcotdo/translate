@@ -104,10 +104,10 @@ class TranslateTab(ctk.CTkFrame):
             return
             
         styles = {
-            "Short Drama": "Đây là phụ đề của một short-drama hiện đại. Hãy dịch bằng ngôn ngữ hiện đại, tự nhiên, và sử dụng những từ ngữ thông dụng của giới trẻ nếu phù hợp. Câu từ cần gãy gọn, dứt khoát.",
-            "Historical": "Đây là phụ đề phim cổ trang tiên hiệp. Xin hãy sử dụng phong cách dịch mang âm hưởng Hán-Việt, bay bổng và trang trọng. Dùng chính xác các đại từ nhân xưng phong kiến.",
-            "Anime": "Hãy dịch phụ đề này theo phong cách thân thiện, vui nhộn dành cho Anime/Hoạt hình gia đình. Giọng văn cần nhẹ nhàng, sử dụng các từ ngữ diễn đạt cảm xúc sinh động.",
-            "Documentary": "Hãy dịch nội dung này dưới góc độ là một bộ phim tài liệu truyền hình mang tính hàn lâm, giáo dục. Bản dịch cần đảm bảo tính chính xác tuyệt đối ở thuật ngữ chuyên ngành."
+            "Short Drama": "This is the subtitle of a fast-paced modern short-drama. Translate using natural, modern language, and incorporate current popular slang where appropriate. Keep the sentences concise, sharp, and decisive.",
+            "Historical": "This is a subtitle for a historical fantasy (Xianxia) drama. Please use a formal, poetic, and classic linguistic style. Accurately use royal and feudal pronouns and honorifics where applicable.",
+            "Anime": "Translate this subtitle in a friendly, fun, and warm tone suitable for family animation/anime. Use gentle phrasing and vivid expressive words naturally. Try to keep sentences short.",
+            "Documentary": "Translate this content from the perspective of an academic or educational television documentary. The translation must ensure absolute accuracy for specialized terminology. The tone should be objective, formal, and clear."
         }
         
         if value in styles:

@@ -19,19 +19,19 @@ class TranslationEngine:
         
         context_block = ""
         if pre_context and pre_context.strip():
-            context_block = f"Thông tin bối cảnh / Ghi chú để dịch tốt hơn:\n{pre_context.strip()}\n"
+            context_block = f"Context Notes / Background details for better translation:\n{pre_context.strip()}\n"
 
         prompt = f"""
-Bạn là một chuyên gia dịch thuật phụ đề phim.
+You are an expert movie subtitle translator.
 
-Quy tắc:
-- Giữ nguyên ý nghĩa và văn phong tự nhiên.
-- Duy trì ngữ cảnh lân cận giữa các dòng.
-- KHÔNG được gộp hoặc chia nhỏ các dòng.
-- Tuân thủ tuyệt đối định dạng trả về: ID|Văn_bản_đã_dịch
+Rules:
+- Keep the meaning and tone natural.
+- Maintain context between consecutive lines.
+- Do NOT merge or split lines.
+- Strictly keep the output format: ID|Translated_Text
 
 {context_block}
-Dịch sang {target_lang}:
+Translate to {target_lang}:
 
 {text_payload}
 """
