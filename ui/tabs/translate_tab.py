@@ -37,7 +37,7 @@ class TranslateTab(ctk.CTkFrame):
         # Target language
         ctk.CTkLabel(self.opt_frame, text="Lang:").pack(side="left", padx=5)
         self.lang_var = ctk.StringVar(value="Vietnamese")
-        self.lang_entry = ctk.CTkEntry(self.opt_frame, variable=self.lang_var, width=100)
+        self.lang_entry = ctk.CTkEntry(self.opt_frame, textvariable=self.lang_var, width=100)
         self.lang_entry.pack(side="left", padx=5)
         
         # Row 1: Load file
