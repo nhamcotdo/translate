@@ -40,6 +40,12 @@ class TranslateTab(ctk.CTkFrame):
         self.lang_entry = ctk.CTkEntry(self.opt_frame, textvariable=self.lang_var, width=100)
         self.lang_entry.pack(side="left", padx=5)
         
+        # Chunk Size
+        ctk.CTkLabel(self.opt_frame, text="Chunk Size (lines):").pack(side="left", padx=5)
+        self.chunk_var = ctk.StringVar(value="15")
+        self.chunk_entry = ctk.CTkEntry(self.opt_frame, textvariable=self.chunk_var, width=50)
+        self.chunk_entry.pack(side="left", padx=5)
+        
         # Row 1: Load file
         self.file_frame = ctk.CTkFrame(self)
         self.file_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
@@ -167,6 +173,12 @@ class TranslateTab(ctk.CTkFrame):
         target_lang = self.lang_var.get()
         auto_rotate = self.key_mode_var.get() == "Auto-Rotate"
         
+        try:
+            chunk_size = int(self.chunk_var.get().strip())
+        except ValueError:
+            messagebox.showerror("Error", "Chunk Size must be a valid integer.")
+            return
+        
         # Get keys for provider
         keys = self.config_manager.get_keys(provider_id)
         if not keys and provider_id in ["openai", "gemini"]:
@@ -193,15 +205,16 @@ class TranslateTab(ctk.CTkFrame):
         self.translate_btn.configure(state="disabled")
         
         # Run in thread
-        threading.Thread(target=self._run_translation_thread, args=(engine, vtt_input, target_lang, model_name, pre_ctx), daemon=True).start()
+        threading.Thread(target=self._run_translation_thread, args=(engine, vtt_input, target_lang, model_name, pre_ctx, chunk_size), daemon=True).start()
 
-    def _run_translation_thread(self, engine, vtt_input, target_lang, model_name, pre_ctx):
+    def _run_translation_thread(self, engine, vtt_input, target_lang, model_name, pre_ctx, chunk_size):
         try:
             final_vtt = engine.run_vtt(
                 vtt_text=vtt_input,
                 target_lang=target_lang,
                 model_name=model_name,
                 pre_context=pre_ctx,
+                chunk_size=chunk_size,
                 progress_callback=self.update_progress,
                 log_callback=self.log
             )
