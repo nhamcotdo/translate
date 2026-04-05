@@ -65,11 +65,11 @@ class TranslateTab(ctk.CTkFrame):
         
         ctk.CTkLabel(self.ctx_frame, text="Pre-Context / Background details:").pack(side="left")
         
-        self.style_var = ctk.StringVar(value="None")
+        self.style_var = ctk.StringVar(value="Custom/Manual")
         self.style_dropdown = ctk.CTkOptionMenu(
             self.ctx_frame, 
             variable=self.style_var, 
-            values=["None", "Short Drama", "Historical", "Anime", "Documentary"],
+            values=["Custom/Manual", "Short Drama", "Historical", "Anime", "Documentary"],
             command=self.on_style_selected
         )
         self.style_dropdown.pack(side="right")
@@ -99,8 +99,11 @@ class TranslateTab(ctk.CTkFrame):
         self.refresh_providers()
 
     def on_style_selected(self, value):
+        if value == "Custom/Manual":
+            self.context_text.grid()
+            return
+            
         styles = {
-            "None": "",
             "Short Drama": "Đây là phụ đề của một short-drama hiện đại. Hãy dịch bằng ngôn ngữ hiện đại, tự nhiên, và sử dụng những từ ngữ thông dụng của giới trẻ nếu phù hợp. Câu từ cần gãy gọn, dứt khoát.",
             "Historical": "Đây là phụ đề phim cổ trang tiên hiệp. Xin hãy sử dụng phong cách dịch mang âm hưởng Hán-Việt, bay bổng và trang trọng. Dùng chính xác các đại từ nhân xưng phong kiến.",
             "Anime": "Hãy dịch phụ đề này theo phong cách thân thiện, vui nhộn dành cho Anime/Hoạt hình gia đình. Giọng văn cần nhẹ nhàng, sử dụng các từ ngữ diễn đạt cảm xúc sinh động.",
@@ -110,6 +113,7 @@ class TranslateTab(ctk.CTkFrame):
         if value in styles:
             self.context_text.delete("0.0", "end")
             self.context_text.insert("0.0", styles[value])
+            self.context_text.grid_remove()
 
     def refresh_providers(self):
         providers = ["openai", "gemini"]
