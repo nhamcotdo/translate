@@ -69,7 +69,7 @@ class TranslateTab(ctk.CTkFrame):
         self.style_dropdown = ctk.CTkOptionMenu(
             self.ctx_frame, 
             variable=self.style_var, 
-            values=["Custom/Manual", "Short Drama", "Historical", "Anime", "Documentary"],
+            values=["Custom/Manual", "Short Drama", "Historical", "Anime", "Documentary", "Tech/Tutorial", "Comedy", "Vlog", "News"],
             command=self.on_style_selected
         )
         self.style_dropdown.pack(side="right")
@@ -107,7 +107,11 @@ class TranslateTab(ctk.CTkFrame):
             "Short Drama": "This is the subtitle of a fast-paced modern short-drama. Translate using natural, modern language, and incorporate current popular slang where appropriate. Keep the sentences concise, sharp, and decisive.",
             "Historical": "This is a subtitle for a historical fantasy (Xianxia) drama. Please use a formal, poetic, and classic linguistic style. Accurately use royal and feudal pronouns and honorifics where applicable.",
             "Anime": "Translate this subtitle in a friendly, fun, and warm tone suitable for family animation/anime. Use gentle phrasing and vivid expressive words naturally. Try to keep sentences short.",
-            "Documentary": "Translate this content from the perspective of an academic or educational television documentary. The translation must ensure absolute accuracy for specialized terminology. The tone should be objective, formal, and clear."
+            "Documentary": "Translate this content from the perspective of an academic or educational television documentary. The translation must ensure absolute accuracy for specialized terminology. The tone should be objective, formal, and clear.",
+            "Tech/Tutorial": "This is a technical video/tutorial about programming or technology. Ensure all technical terms are translated accurately or kept in English if that is the industry standard. The tone should be professional, instructional, and clear.",
+            "Comedy": "This is a comedy show or stand-up routine. Translate the jokes naturally to match the target language's sense of humor. Use cultural equivalents to preserve the punchlines, keeping the language informal.",
+            "Vlog": "This is a casual daily vlog or YouTube video. The translation should be highly conversational, energetic, and relatable. Use everyday language, common internet slang, and friendly expressions.",
+            "News": "This is a news broadcast or journalistic report. The translation must be highly objective, formal, and strictly factual. Maintain a professional anchor-style tone without emotional bias."
         }
         
         if value in styles:
