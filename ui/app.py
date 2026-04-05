@@ -32,5 +32,6 @@ class App(ctk.CTk):
         self.settings_tab.pack(expand=True, fill="both")
 
         # MacOS Tkinter black screen workaround: Force a window redraw
-        self.after(100, lambda: self.geometry(f"{self.winfo_width()+1}x{self.winfo_height()}"))
-        self.after(200, lambda: self.geometry("900x700"))
+        self.update()
+        self.after(200, lambda: self.geometry("901x700"))
+        self.after(300, lambda: self.geometry("900x700"))
