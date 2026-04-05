@@ -17,6 +17,11 @@ class BaseProvider(ABC):
     def is_rate_limit_error(self, e: Exception) -> bool:
         """Returns True if the exception is a rate limit error."""
         pass
+        
+    @abstractmethod
+    def get_available_models(self, api_key: str) -> List[str]:
+        """Fetches a list of available model names."""
+        pass
 
 class OpenAIProvider(BaseProvider):
     def translate(self, prompt: str, model_name: str, api_key: str) -> str:
@@ -33,6 +38,18 @@ class OpenAIProvider(BaseProvider):
     def is_rate_limit_error(self, e: Exception) -> bool:
         return isinstance(e, OpenAIRateLimitError)
 
+    def get_available_models(self, api_key: str) -> List[str]:
+        client = OpenAI(api_key=api_key, http_client=httpx.Client())
+        try:
+            models = client.models.list()
+            # Sort models by creation time or alphabetically
+            m_list = [m.id for m in models.data]
+            m_list.sort()
+            # Optionally filter out some whisper/dall-e but for now return all
+            return [m for m in m_list if "gpt" in m or "o1" in m]
+        except Exception:
+            return ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"]
+
 class GeminiProvider(BaseProvider):
     def translate(self, prompt: str, model_name: str, api_key: str) -> str:
         genai.configure(api_key=api_key)
@@ -42,6 +59,17 @@ class GeminiProvider(BaseProvider):
 
     def is_rate_limit_error(self, e: Exception) -> bool:
         return isinstance(e, ResourceExhausted) or "429" in str(e)
+
+    def get_available_models(self, api_key: str) -> List[str]:
+        genai.configure(api_key=api_key)
+        try:
+            models = genai.list_models()
+            m_list = [m.name for m in models if "generateContent" in m.supported_generation_methods]
+            # remove 'models/' prefix
+            m_list = [m.replace("models/", "") for m in m_list]
+            return m_list
+        except Exception:
+            return ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
 
 class CustomOpenAIProvider(BaseProvider):
     def __init__(self, base_url: str, custom_headers: Dict[str, str] = None):
@@ -67,6 +95,20 @@ class CustomOpenAIProvider(BaseProvider):
 
     def is_rate_limit_error(self, e: Exception) -> bool:
         return isinstance(e, OpenAIRateLimitError)
+
+    def get_available_models(self, api_key: str) -> List[str]:
+        client_key = api_key if api_key.strip() else "dummy-key"
+        transport = httpx.HTTPTransport()
+        client = OpenAI(
+            api_key=client_key,
+            base_url=self.base_url,
+            http_client=httpx.Client(transport=transport, headers=self.custom_headers)
+        )
+        try:
+            models = client.models.list()
+            return [m.id for m in models.data]
+        except Exception:
+            return []
 
 class TranslatorService:
     def __init__(self, provider: BaseProvider, keys: List[str], auto_rotate: bool = True):

@@ -93,17 +93,34 @@ class TranslateTab(ctk.CTkFrame):
             self.on_provider_change(curr)
 
     def on_provider_change(self, value):
-        # Update models based on provider
-        if value == "openai":
-            models = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"]
-        elif value == "gemini":
-            models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]
+        self.model_dropdown.configure(values=["Loading models..."])
+        self.model_var.set("Loading...")
+        
+        threading.Thread(target=self._fetch_models_thread, args=(value,), daemon=True).start()
+
+    def _fetch_models_thread(self, provider_id):
+        keys = self.config_manager.get_keys(provider_id)
+        api_key = keys[0] if keys else ""
+        
+        if provider_id == "openai":
+            provider_inst = OpenAIProvider()
+            models = provider_inst.get_available_models(api_key)
+        elif provider_id == "gemini":
+            provider_inst = GeminiProvider()
+            models = provider_inst.get_available_models(api_key)
         else:
-            cust = self.config_manager.get_custom_providers().get(value, {})
-            models = cust.get("models", ["default-model"])
+            cust = self.config_manager.get_custom_providers().get(provider_id, {})
+            provider_inst = CustomOpenAIProvider(base_url=cust.get("base_url", ""), custom_headers=cust.get("headers", {}))
+            models = provider_inst.get_available_models(api_key)
             if not models:
-                models = ["default-model"]
+                models = cust.get("models", [])
                 
+        if not models:
+            models = ["No models found"]
+            
+        self.model_dropdown.after(0, lambda: self._update_model_dropdown(models))
+        
+    def _update_model_dropdown(self, models):
         self.model_dropdown.configure(values=models)
         self.model_var.set(models[0])
 
