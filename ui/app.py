@@ -31,7 +31,9 @@ class App(ctk.CTk):
         self.settings_tab = SettingsTab(self.tabview.tab("Settings"), self.config_manager, providers_updated_callback=self.translate_tab.refresh_providers)
         self.settings_tab.pack(expand=True, fill="both")
 
-        # MacOS Tkinter black screen workaround: Force a window redraw
-        self.update()
-        self.after(200, lambda: self.geometry("901x700"))
-        self.after(300, lambda: self.geometry("900x700"))
+        # MacOS Tkinter black screen workaround: Force a window redraw after mainloop starts
+        self.after(100, self._mac_redraw)
+
+    def _mac_redraw(self):
+        self.geometry("901x700")
+        self.after(50, lambda: self.geometry("900x700"))
