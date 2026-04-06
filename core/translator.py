@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 from openai import OpenAI, RateLimitError as OpenAIRateLimitError
 import httpx
+import certifi
 import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted
 
@@ -27,7 +28,7 @@ class OpenAIProvider(BaseProvider):
     def translate(self, prompt: str, model_name: str, api_key: str) -> str:
         client = OpenAI(
             api_key=api_key,
-            http_client=httpx.Client()
+            http_client=httpx.Client(verify=certifi.where())
         )
         response = client.chat.completions.create(
             model=model_name,
@@ -39,7 +40,7 @@ class OpenAIProvider(BaseProvider):
         return isinstance(e, OpenAIRateLimitError)
 
     def get_available_models(self, api_key: str) -> List[str]:
-        client = OpenAI(api_key=api_key, http_client=httpx.Client())
+        client = OpenAI(api_key=api_key, http_client=httpx.Client(verify=certifi.where()))
         try:
             models = client.models.list()
             # Sort models by creation time or alphabetically
@@ -85,7 +86,7 @@ class CustomOpenAIProvider(BaseProvider):
         client = OpenAI(
             api_key=client_key,
             base_url=self.base_url,
-            http_client=httpx.Client(transport=transport, headers=self.custom_headers)
+            http_client=httpx.Client(transport=transport, headers=self.custom_headers, verify=certifi.where())
         )
         response = client.chat.completions.create(
             model=model_name,
@@ -102,7 +103,7 @@ class CustomOpenAIProvider(BaseProvider):
         client = OpenAI(
             api_key=client_key,
             base_url=self.base_url,
-            http_client=httpx.Client(transport=transport, headers=self.custom_headers)
+            http_client=httpx.Client(transport=transport, headers=self.custom_headers, verify=certifi.where())
         )
         try:
             models = client.models.list()
