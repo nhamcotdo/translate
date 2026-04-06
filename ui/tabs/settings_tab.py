@@ -33,53 +33,64 @@ class SettingsTab(ctk.CTkFrame):
         gemini_keys = self.config_manager.get_keys("gemini")
         self.gemini_entry.insert(0, ",".join(gemini_keys))
 
+        # NVIDIA
+        self.nvidia_label = ctk.CTkLabel(self, text="NVIDIA Keys (comma separated):")
+        self.nvidia_label.grid(row=3, column=0, padx=20, pady=5, sticky="w")
+        
+        self.nvidia_entry = ctk.CTkEntry(self, width=400)
+        self.nvidia_entry.grid(row=3, column=1, padx=20, pady=5, sticky="we")
+        nvidia_keys = self.config_manager.get_keys("nvidia")
+        self.nvidia_entry.insert(0, ",".join(nvidia_keys))
+
         self.save_def_btn = ctk.CTkButton(self, text="Save Default Keys", command=self.save_default_keys)
-        self.save_def_btn.grid(row=3, column=1, padx=20, pady=10, sticky="e")
+        self.save_def_btn.grid(row=4, column=1, padx=20, pady=10, sticky="e")
 
         # 2. Custom Providers
         self.label_cust = ctk.CTkLabel(self, text="Custom OpenAI-compatible Providers", font=ctk.CTkFont(size=16, weight="bold"))
-        self.label_cust.grid(row=4, column=0, columnspan=2, padx=20, pady=(30, 10), sticky="w")
+        self.label_cust.grid(row=5, column=0, columnspan=2, padx=20, pady=(30, 10), sticky="w")
 
         # Form
         self.cust_id_label = ctk.CTkLabel(self, text="Provider ID:")
-        self.cust_id_label.grid(row=5, column=0, padx=20, pady=5, sticky="w")
+        self.cust_id_label.grid(row=6, column=0, padx=20, pady=5, sticky="w")
         self.cust_id_entry = ctk.CTkEntry(self)
-        self.cust_id_entry.grid(row=5, column=1, padx=20, pady=5, sticky="we")
+        self.cust_id_entry.grid(row=6, column=1, padx=20, pady=5, sticky="we")
 
         self.cust_name_label = ctk.CTkLabel(self, text="Display Name:")
-        self.cust_name_label.grid(row=6, column=0, padx=20, pady=5, sticky="w")
+        self.cust_name_label.grid(row=7, column=0, padx=20, pady=5, sticky="w")
         self.cust_name_entry = ctk.CTkEntry(self)
-        self.cust_name_entry.grid(row=6, column=1, padx=20, pady=5, sticky="we")
+        self.cust_name_entry.grid(row=7, column=1, padx=20, pady=5, sticky="we")
 
         self.cust_url_label = ctk.CTkLabel(self, text="Base URL:")
-        self.cust_url_label.grid(row=7, column=0, padx=20, pady=5, sticky="w")
+        self.cust_url_label.grid(row=8, column=0, padx=20, pady=5, sticky="w")
         self.cust_url_entry = ctk.CTkEntry(self)
-        self.cust_url_entry.grid(row=7, column=1, padx=20, pady=5, sticky="we")
+        self.cust_url_entry.grid(row=8, column=1, padx=20, pady=5, sticky="we")
 
         self.cust_keys_label = ctk.CTkLabel(self, text="API Keys (comma separated):")
-        self.cust_keys_label.grid(row=8, column=0, padx=20, pady=5, sticky="w")
+        self.cust_keys_label.grid(row=9, column=0, padx=20, pady=5, sticky="w")
         self.cust_keys_entry = ctk.CTkEntry(self)
-        self.cust_keys_entry.grid(row=8, column=1, padx=20, pady=5, sticky="we")
+        self.cust_keys_entry.grid(row=9, column=1, padx=20, pady=5, sticky="we")
 
         self.cust_models_label = ctk.CTkLabel(self, text="Models (comma separated, e.g. gpt-4o,claude-3):")
-        self.cust_models_label.grid(row=9, column=0, padx=20, pady=5, sticky="w")
+        self.cust_models_label.grid(row=10, column=0, padx=20, pady=5, sticky="w")
         self.cust_models_entry = ctk.CTkEntry(self)
-        self.cust_models_entry.grid(row=9, column=1, padx=20, pady=5, sticky="we")
+        self.cust_models_entry.grid(row=10, column=1, padx=20, pady=5, sticky="we")
 
         self.cust_headers_label = ctk.CTkLabel(self, text="Headers (JSON, e.g. {\"X-Custom\": \"val\"}):")
-        self.cust_headers_label.grid(row=10, column=0, padx=20, pady=5, sticky="w")
+        self.cust_headers_label.grid(row=11, column=0, padx=20, pady=5, sticky="w")
         self.cust_headers_entry = ctk.CTkEntry(self)
-        self.cust_headers_entry.grid(row=10, column=1, padx=20, pady=5, sticky="we")
+        self.cust_headers_entry.grid(row=11, column=1, padx=20, pady=5, sticky="we")
 
         self.add_cust_btn = ctk.CTkButton(self, text="Add / Update Custom Provider", command=self.save_custom_provider)
-        self.add_cust_btn.grid(row=11, column=1, padx=20, pady=10, sticky="e")
+        self.add_cust_btn.grid(row=12, column=1, padx=20, pady=10, sticky="e")
 
     def save_default_keys(self):
         o_keys = [k.strip() for k in self.openai_entry.get().split(",") if k.strip()]
         g_keys = [k.strip() for k in self.gemini_entry.get().split(",") if k.strip()]
+        n_keys = [k.strip() for k in self.nvidia_entry.get().split(",") if k.strip()]
         
         self.config_manager.set_keys("openai", o_keys)
         self.config_manager.set_keys("gemini", g_keys)
+        self.config_manager.set_keys("nvidia", n_keys)
         messagebox.showinfo("Success", "Default keys saved successfully.")
 
     def save_custom_provider(self):

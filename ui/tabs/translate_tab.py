@@ -4,7 +4,7 @@ import customtkinter as ctk
 from tkinter import filedialog, messagebox
 
 from core.engine import TranslationEngine
-from core.translator import TranslatorService, OpenAIProvider, GeminiProvider, CustomOpenAIProvider
+from core.translator import TranslatorService, OpenAIProvider, GeminiProvider, CustomOpenAIProvider, NvidiaProvider
 
 class TranslateTab(ctk.CTkFrame):
     def __init__(self, master, config_manager, **kwargs):
@@ -125,7 +125,7 @@ class TranslateTab(ctk.CTkFrame):
             self.context_text.grid_remove()
 
     def refresh_providers(self):
-        providers = ["openai", "gemini"]
+        providers = ["openai", "gemini", "nvidia"]
         customs = self.config_manager.get_custom_providers()
         providers.extend(list(customs.keys()))
         
@@ -162,6 +162,9 @@ class TranslateTab(ctk.CTkFrame):
             models = provider_inst.get_available_models(api_key)
         elif provider_id == "gemini":
             provider_inst = GeminiProvider()
+            models = provider_inst.get_available_models(api_key)
+        elif provider_id == "nvidia":
+            provider_inst = NvidiaProvider()
             models = provider_inst.get_available_models(api_key)
         else:
             cust = self.config_manager.get_custom_providers().get(provider_id, {})
@@ -230,7 +233,7 @@ class TranslateTab(ctk.CTkFrame):
         
         # Get keys for provider
         keys = self.config_manager.get_keys(provider_id)
-        if not keys and provider_id in ["openai", "gemini"]:
+        if not keys and provider_id in ["openai", "gemini", "nvidia"]:
             messagebox.showerror("Error", f"No API keys configured for {provider_id}.")
             return
             
@@ -239,6 +242,8 @@ class TranslateTab(ctk.CTkFrame):
             provider_inst = OpenAIProvider()
         elif provider_id == "gemini":
             provider_inst = GeminiProvider()
+        elif provider_id == "nvidia":
+            provider_inst = NvidiaProvider()
         else:
             cust = self.config_manager.get_custom_providers().get(provider_id)
             if not cust:

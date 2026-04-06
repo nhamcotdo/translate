@@ -13,7 +13,8 @@ class ConfigManager:
         return {
             "keys": {
                 "openai": [],
-                "gemini": []
+                "gemini": [],
+                "nvidia": []
             },
             "custom_providers": {},
             "default_provider": "openai",
@@ -47,7 +48,7 @@ class ConfigManager:
 
     # Key management for default providers
     def get_keys(self, provider: str) -> List[str]:
-        if provider in ["openai", "gemini"]:
+        if provider in ["openai", "gemini", "nvidia"]:
             return self.config["keys"].get(provider, [])
         # For custom providers
         if provider in self.config["custom_providers"]:
@@ -55,7 +56,7 @@ class ConfigManager:
         return []
 
     def set_keys(self, provider: str, keys: List[str]):
-        if provider in ["openai", "gemini"]:
+        if provider in ["openai", "gemini", "nvidia"]:
             self.config["keys"][provider] = keys
         elif provider in self.config["custom_providers"]:
             self.config["custom_providers"][provider]["keys"] = keys

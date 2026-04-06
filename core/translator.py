@@ -1,4 +1,5 @@
 import time
+import requests
 from typing import List, Dict, Tuple, Any
 from abc import ABC, abstractmethod
 
@@ -110,6 +111,38 @@ class CustomOpenAIProvider(BaseProvider):
             return [m.id for m in models.data]
         except Exception:
             return []
+
+class NvidiaProvider(BaseProvider):
+    def translate(self, prompt: str, model_name: str, api_key: str) -> str:
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://integrate.api.nvidia.com/v1",
+            http_client=httpx.Client(verify=certifi.where())
+        )
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=1.0,
+            top_p=0.95
+        )
+        return response.choices[0].message.content.strip()
+
+    def is_rate_limit_error(self, e: Exception) -> bool:
+        return isinstance(e, OpenAIRateLimitError)
+
+    def get_available_models(self, api_key: str) -> List[str]:
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://integrate.api.nvidia.com/v1",
+            http_client=httpx.Client(verify=certifi.where())
+        )
+        try:
+            models = client.models.list()
+            m_list = [m.id for m in models.data]
+            m_list.sort()
+            return m_list
+        except Exception:
+            return ["meta/llama-3.1-405b-instruct", "google/gemma-4-31b-it", "google/gemma-2-27b-it"]
 
 class TranslatorService:
     def __init__(self, provider: BaseProvider, keys: List[str], auto_rotate: bool = True):
