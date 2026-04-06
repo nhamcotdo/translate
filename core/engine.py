@@ -91,4 +91,6 @@ Translate to {target_lang}:
         if log_callback:
             log_callback("Formatting back to VTT...")
             
+        translated_subs = VTTProcessor.remove_duplicates(translated_subs)
+            
         return VTTProcessor.to_vtt(translated_subs)

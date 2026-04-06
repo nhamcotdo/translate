@@ -122,7 +122,7 @@ class NvidiaProvider(BaseProvider):
         response = client.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": prompt}],
-            temperature=1.0,
+            temperature=0.3,
             top_p=0.95
         )
         return response.choices[0].message.content.strip()
