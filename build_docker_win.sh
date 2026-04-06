@@ -6,11 +6,11 @@ echo "====================================="
 echo ""
 echo "Note: This will download a lightweight Windows/Wine container, install dependencies, and build the exe."
 
-docker run --rm -v "$(pwd):/src/" cdrx/pyinstaller-windows:python3 -c "
+docker run --rm -v "$(pwd):/src/" -w /src/ --platform linux/amd64 tobix/pywine:3.10 bash -c "
 echo '=> Installing Python dependencies for Windows...' && \
-pip install -r requirements.txt && \
+wine pip install -r requirements.txt && \
 echo '=> Running PyInstaller (Windows Build)...' && \
-pyinstaller --noconfirm --onedir --windowed --name 'SubtitleTranslator' --add-data 'core;core' --add-data 'ui;ui' main.py
+wine pyinstaller --noconfirm --onedir --windowed --name 'SubtitleTranslator' --add-data 'core;core' --add-data 'ui;ui' main.py
 "
 
 if [ $? -eq 0 ]; then

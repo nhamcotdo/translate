@@ -96,7 +96,8 @@ class TranslateTab(ctk.CTkFrame):
         self.save_btn = ctk.CTkButton(self, text="Save Translated File", command=self.save_file)
         self.save_btn.grid(row=9, column=1, sticky="e", padx=10, pady=10)
         
-        self.refresh_providers()
+        # Delay initial provider refresh to avoid MacOS Tkinter "main thread is not in main loop" error
+        self.after(100, self.refresh_providers)
 
     def on_style_selected(self, value):
         if value == "Custom/Manual":
