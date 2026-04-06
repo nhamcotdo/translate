@@ -1,4 +1,5 @@
 import threading
+import queue
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 
@@ -9,6 +10,9 @@ class TranslateTab(ctk.CTkFrame):
     def __init__(self, master, config_manager, **kwargs):
         super().__init__(master, **kwargs)
         self.config_manager = config_manager
+        
+        self.ui_queue = queue.Queue()
+        self._start_ui_queue_loop()
         
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
@@ -134,10 +138,19 @@ class TranslateTab(ctk.CTkFrame):
         else:
             self.on_provider_change(curr)
 
+    def _start_ui_queue_loop(self):
+        try:
+            while True:
+                task = self.ui_queue.get_nowait()
+                task()
+        except queue.Empty:
+            pass
+        self.after(50, self._start_ui_queue_loop)
+
     def on_provider_change(self, value):
         self.model_dropdown.configure(values=["Loading models..."])
         self.model_var.set("Loading...")
-        
+            
         threading.Thread(target=self._fetch_models_thread, args=(value,), daemon=True).start()
 
     def _fetch_models_thread(self, provider_id):
@@ -160,7 +173,7 @@ class TranslateTab(ctk.CTkFrame):
         if not models:
             models = ["No models found"]
             
-        self.model_dropdown.after(0, lambda: self._update_model_dropdown(models))
+        self.ui_queue.put(lambda m=models: self._update_model_dropdown(m))
         
     def _update_model_dropdown(self, models):
         self.model_dropdown.configure(values=models)
@@ -186,8 +199,8 @@ class TranslateTab(ctk.CTkFrame):
             messagebox.showinfo("Saved", "File saved successfully.")
 
     def log(self, msg: str):
-        # Thread safe append
-        self.output_text.after(0, self._append_log, msg)
+        # Thread safe append via queue
+        self.ui_queue.put(lambda m=msg: self._append_log(m))
 
     def _append_log(self, msg: str):
         self.output_text.insert("end", msg + "\n")
@@ -195,7 +208,7 @@ class TranslateTab(ctk.CTkFrame):
 
     def update_progress(self, current: int, total: int):
         val = current / total if total > 0 else 0
-        self.progress.after(0, self.progress.set, val)
+        self.ui_queue.put(lambda v=val: self.progress.set(v))
 
     def start_translation(self):
         vtt_input = self.input_text.get("0.0", "end").strip()
@@ -256,11 +269,11 @@ class TranslateTab(ctk.CTkFrame):
             )
             # Replace logs with final result, or just append it and say "Done"
             self.log("\n--- FINAL TRANSLATED VTT ---\n" + final_vtt)
-            self.output_text.after(0, self._set_final_output, final_vtt)
+            self.ui_queue.put(lambda f=final_vtt: self._set_final_output(f))
         except Exception as e:
             self.log(f"\n[ERROR] Translation failed: {e}")
         finally:
-            self.translate_btn.after(0, lambda: self.translate_btn.configure(state="normal"))
+            self.ui_queue.put(lambda: self.translate_btn.configure(state="normal"))
 
     def _set_final_output(self, final_vtt):
         self.output_text.delete("0.0", "end")
