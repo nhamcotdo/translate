@@ -1,11 +1,11 @@
 import threading
 from typing import List, Dict, Callable
 
-from core.vtt_parser import VTTProcessor
+from core.vtt_parser import SubtitleProcessor
 from core.translator import TranslatorService
 
 class TranslationEngine:
-    """Orchestrates translating an entire subtitle string or VTT."""
+    """Orchestrates translating an entire subtitle string (VTT or SRT)."""
     
     def __init__(self, translator_service: TranslatorService):
         self.translator_service = translator_service
@@ -65,12 +65,18 @@ Translate to {target_lang}:
 
         return translated_chunk
 
-    def run_vtt(self, vtt_text: str, target_lang: str, model_name: str, pre_context: str, chunk_size: int = 15, progress_callback: Callable = None, log_callback: Callable = None) -> str:
+    def run(self, subtitle_text: str, target_lang: str, model_name: str, pre_context: str, chunk_size: int = 15, progress_callback: Callable = None, log_callback: Callable = None) -> tuple:
+        """Translate subtitles. Returns (translated_text, detected_format)."""
+        # Auto-detect format
+        detected_format = SubtitleProcessor.detect_format(subtitle_text)
+        fmt_label = detected_format.upper()
+
         if log_callback:
-            log_callback("Parsing VTT...")
+            log_callback(f"Detected format: {fmt_label}")
+            log_callback(f"Parsing {fmt_label}...")
             
-        subs = VTTProcessor.parse_vtt(vtt_text)
-        subs = VTTProcessor.remove_duplicates(subs)
+        subs = SubtitleProcessor.parse_auto(subtitle_text)
+        subs = SubtitleProcessor.remove_duplicates(subs)
         
         total_chunks = (len(subs) + chunk_size - 1) // chunk_size
         if log_callback:
@@ -78,7 +84,7 @@ Translate to {target_lang}:
 
         translated_subs = []
         
-        for i, chunk in enumerate(VTTProcessor.chunk_subs(subs, chunk_size=chunk_size)):
+        for i, chunk in enumerate(SubtitleProcessor.chunk_subs(subs, chunk_size=chunk_size)):
             if log_callback:
                 log_callback(f"Translating chunk {i+1}/{total_chunks}...")
                 
@@ -89,8 +95,13 @@ Translate to {target_lang}:
                 progress_callback(i + 1, total_chunks)
                 
         if log_callback:
-            log_callback("Formatting back to VTT...")
+            log_callback(f"Formatting back to {fmt_label}...")
             
-        translated_subs = VTTProcessor.remove_duplicates(translated_subs)
+        translated_subs = SubtitleProcessor.remove_duplicates(translated_subs)
             
-        return VTTProcessor.to_vtt(translated_subs)
+        return SubtitleProcessor.to_format(translated_subs, detected_format), detected_format
+
+    # Backward compatibility
+    def run_vtt(self, vtt_text: str, target_lang: str, model_name: str, pre_context: str, chunk_size: int = 15, progress_callback: Callable = None, log_callback: Callable = None) -> str:
+        result, _ = self.run(vtt_text, target_lang, model_name, pre_context, chunk_size, progress_callback, log_callback)
+        return result

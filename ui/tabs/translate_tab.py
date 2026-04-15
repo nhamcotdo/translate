@@ -10,6 +10,7 @@ class TranslateTab(ctk.CTkFrame):
     def __init__(self, master, config_manager, **kwargs):
         super().__init__(master, **kwargs)
         self.config_manager = config_manager
+        self.detected_format = "vtt"  # Track detected subtitle format
         
         self.ui_queue = queue.Queue()
         self._start_ui_queue_loop()
@@ -53,13 +54,13 @@ class TranslateTab(ctk.CTkFrame):
         # Row 1: Load file
         self.file_frame = ctk.CTkFrame(self)
         self.file_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
-        self.load_btn = ctk.CTkButton(self.file_frame, text="Load VTT File", command=self.load_file)
+        self.load_btn = ctk.CTkButton(self.file_frame, text="Load Subtitle File", command=self.load_file)
         self.load_btn.pack(side="left", padx=5)
         self.file_label = ctk.CTkLabel(self.file_frame, text="No file selected.")
         self.file_label.pack(side="left", padx=5)
         
         # Row 2: Text input
-        ctk.CTkLabel(self, text="Input Subtitles (VTT or raw text):").grid(row=2, column=0, padx=10, sticky="sw")
+        ctk.CTkLabel(self, text="Input Subtitles (VTT/SRT):").grid(row=2, column=0, padx=10, sticky="sw")
         self.input_text = ctk.CTkTextbox(self, height=150)
         self.input_text.grid(row=3, column=0, columnspan=2, sticky="nsew", padx=10, pady=5)
         
@@ -192,11 +193,16 @@ class TranslateTab(ctk.CTkFrame):
             self.file_label.configure(text=filename)
 
     def save_file(self):
-        filename = filedialog.asksaveasfilename(defaultextension=".vtt", filetypes=[("VTT files", "*.vtt")])
+        if self.detected_format == "srt":
+            default_ext = ".srt"
+            filetypes = [("SRT files", "*.srt"), ("VTT files", "*.vtt"), ("All Files", "*.*")]
+        else:
+            default_ext = ".vtt"
+            filetypes = [("VTT files", "*.vtt"), ("SRT files", "*.srt"), ("All Files", "*.*")]
+        
+        filename = filedialog.asksaveasfilename(defaultextension=default_ext, filetypes=filetypes)
         if filename:
             content = self.output_text.get("0.0", "end")
-            # Usually output text will have the logs at the beginning. 
-            # We should probably store the final VTT in a variable, but for simplicity we write the whole output block (assuming we replace logs with final result)
             with open(filename, "w", encoding="utf-8") as f:
                 f.write(content.strip())
             messagebox.showinfo("Saved", "File saved successfully.")
@@ -263,8 +269,8 @@ class TranslateTab(ctk.CTkFrame):
 
     def _run_translation_thread(self, engine, vtt_input, target_lang, model_name, pre_ctx, chunk_size):
         try:
-            final_vtt = engine.run_vtt(
-                vtt_text=vtt_input,
+            final_text, detected_fmt = engine.run(
+                subtitle_text=vtt_input,
                 target_lang=target_lang,
                 model_name=model_name,
                 pre_context=pre_ctx,
@@ -272,14 +278,15 @@ class TranslateTab(ctk.CTkFrame):
                 progress_callback=self.update_progress,
                 log_callback=self.log
             )
-            # Replace logs with final result, or just append it and say "Done"
-            self.log("\n--- FINAL TRANSLATED VTT ---\n" + final_vtt)
-            self.ui_queue.put(lambda f=final_vtt: self._set_final_output(f))
+            self.detected_format = detected_fmt
+            fmt_label = detected_fmt.upper()
+            self.log(f"\n--- FINAL TRANSLATED {fmt_label} ---\n" + final_text)
+            self.ui_queue.put(lambda f=final_text: self._set_final_output(f))
         except Exception as e:
             self.log(f"\n[ERROR] Translation failed: {e}")
         finally:
             self.ui_queue.put(lambda: self.translate_btn.configure(state="normal"))
 
-    def _set_final_output(self, final_vtt):
+    def _set_final_output(self, final_text):
         self.output_text.delete("0.0", "end")
-        self.output_text.insert("0.0", final_vtt)
+        self.output_text.insert("0.0", final_text)
