@@ -67,8 +67,13 @@ class ExtractTab(ctk.CTkFrame):
         self.text_frame.grid_columnconfigure(0, weight=1)
         self.text_frame.grid_rowconfigure(1, weight=1)
 
-        ctk.CTkLabel(self.text_frame, text="Extracted Subtitles", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky="w", padx=5, pady=5)
-        self.output_text = ctk.CTkTextbox(self.text_frame, border_spacing=10)
+        output_header = ctk.CTkFrame(self.text_frame, fg_color="transparent")
+        output_header.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+        ctk.CTkLabel(output_header, text="Extracted Subtitles", font=ctk.CTkFont(weight="bold")).pack(side="left")
+        self.clear_output_btn = ctk.CTkButton(output_header, text="✕ Clear", width=60, height=24, fg_color="#334155", hover_color="#475569", cursor="hand2", command=lambda: self.output_text.delete("0.0", "end"))
+        self.clear_output_btn.pack(side="right")
+
+        self.output_text = ctk.CTkTextbox(self.text_frame, border_spacing=10, wrap="word")
         self.output_text.grid(row=1, column=0, sticky="nsew")
 
         # --- Action Bar ---
@@ -78,9 +83,12 @@ class ExtractTab(ctk.CTkFrame):
 
         self.extract_btn = ctk.CTkButton(self.action_bar, text="▶ Start Extraction", font=ctk.CTkFont(weight="bold"), command=self.start_extraction, cursor="hand2", height=40)
         self.extract_btn.grid(row=0, column=0, sticky="w")
+        
+        self.cancel_btn = ctk.CTkButton(self.action_bar, text="⏹ Cancel", font=ctk.CTkFont(weight="bold"), command=self.cancel_extraction, cursor="hand2", height=40, fg_color="#DC2626", hover_color="#B91C1C", state="disabled")
+        self.cancel_btn.grid(row=0, column=1, sticky="w", padx=(10, 0))
 
         self.progress_frame = ctk.CTkFrame(self.action_bar, fg_color="transparent")
-        self.progress_frame.grid(row=0, column=1, sticky="ew", padx=20)
+        self.progress_frame.grid(row=0, column=2, sticky="ew", padx=20)
         self.progress_frame.grid_columnconfigure(0, weight=1)
         
         self.status_label = ctk.CTkLabel(self.progress_frame, text="Ready", text_color="gray", font=ctk.CTkFont(size=12))
@@ -91,13 +99,14 @@ class ExtractTab(ctk.CTkFrame):
         self.progress.set(0)
 
         self.save_btn = ctk.CTkButton(self.action_bar, text="💾 Save File", command=self.save_file, cursor="hand2", fg_color="#10B981", hover_color="#059669", height=40)
-        self.save_btn.grid(row=0, column=2, sticky="e", padx=(0, 10))
+        self.save_btn.grid(row=0, column=3, sticky="e", padx=(0, 10))
 
         self.send_btn = ctk.CTkButton(self.action_bar, text="↗ Send to Translate", command=self.send_to_translate, cursor="hand2", fg_color="#8B5CF6", hover_color="#7C3AED", height=40)
-        self.send_btn.grid(row=0, column=3, sticky="e")
+        self.send_btn.grid(row=0, column=4, sticky="e")
 
         self.selected_file = None
         self.translate_tab = None
+        self.cancel_event = None
 
     def set_translate_tab(self, translate_tab):
         self.translate_tab = translate_tab
@@ -142,14 +151,22 @@ class ExtractTab(ctk.CTkFrame):
 
         self.output_text.delete("0.0", "end")
         self.extract_btn.configure(state="disabled")
+        self.cancel_btn.configure(state="normal")
         self.progress.set(0)
         self.log_status("Starting...")
 
+        self.cancel_event = threading.Event()
         threading.Thread(
             target=self._extraction_thread,
             args=(self.selected_file, model_size, language),
             daemon=True,
         ).start()
+
+    def cancel_extraction(self):
+        if self.cancel_event:
+            self.cancel_event.set()
+            self.log_status("Cancelling (waiting for Whisper to finish background task)...")
+            self.cancel_btn.configure(state="disabled")
 
     def _extraction_thread(self, file_path, model_size, language):
         try:
@@ -164,6 +181,10 @@ class ExtractTab(ctk.CTkFrame):
                 progress_callback=self.update_progress,
             )
 
+            if self.cancel_event and self.cancel_event.is_set():
+                self.ui_queue.put(lambda: self.log_status("Extraction cancelled by user."))
+                return
+
             fmt = self.extracted_format
             if fmt == "srt":
                 output = STTService.segments_to_srt(segments)
@@ -174,9 +195,11 @@ class ExtractTab(ctk.CTkFrame):
             self.ui_queue.put(lambda o=output, dl=detected_lang: self._show_result(o, dl))
 
         except Exception as e:
-            self.ui_queue.put(lambda err=str(e): self._show_error(err))
+            if not (self.cancel_event and self.cancel_event.is_set()):
+                self.ui_queue.put(lambda err=str(e): self._show_error(err))
         finally:
             self.ui_queue.put(lambda: self.extract_btn.configure(state="normal"))
+            self.ui_queue.put(lambda: self.cancel_btn.configure(state="disabled"))
 
     def _show_result(self, output, detected_lang):
         self.output_text.delete("0.0", "end")

@@ -65,7 +65,7 @@ Translate to {target_lang}:
 
         return translated_chunk
 
-    def run(self, subtitle_text: str, target_lang: str, model_name: str, pre_context: str, chunk_size: int = 15, progress_callback: Callable = None, log_callback: Callable = None) -> tuple:
+    def run(self, subtitle_text: str, target_lang: str, model_name: str, pre_context: str, chunk_size: int = 15, progress_callback: Callable = None, log_callback: Callable = None, cancel_event: threading.Event = None) -> tuple:
         """Translate subtitles. Returns (translated_text, detected_format)."""
         # Auto-detect format
         detected_format = SubtitleProcessor.detect_format(subtitle_text)
@@ -85,6 +85,11 @@ Translate to {target_lang}:
         translated_subs = []
         
         for i, chunk in enumerate(SubtitleProcessor.chunk_subs(subs, chunk_size=chunk_size)):
+            if cancel_event and cancel_event.is_set():
+                if log_callback:
+                    log_callback("Translation cancelled by user.")
+                break
+
             if log_callback:
                 log_callback(f"Translating chunk {i+1}/{total_chunks}...")
                 
