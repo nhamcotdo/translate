@@ -25,14 +25,19 @@ pip install -r requirements.txt
 
 echo Cleaning previous builds...
 rmdir /s /q build dist 2>nul
-del /q *.spec 2>nul
 
 echo.
 echo Building executable with PyInstaller...
 REM Note: Windows uses semicolon (;) for --add-data separator
-pyinstaller --noconfirm --onedir --windowed --name "SubtitleTranslator" --add-data "core;core" --add-data "ui;ui" main.py
+pyinstaller --noconfirm --onedir --windowed --name "SubtitleTranslator" --add-data "core;core" --add-data "ui;ui" --add-data "settings.json;." main.py
 
 echo.
-echo Build complete! Check the 'dist\SubtitleTranslator' folder.
-echo (You can run SubtitleTranslator.exe from there)
+if exist "dist\SubtitleTranslator\SubtitleTranslator.exe" (
+    echo ===================================
+    echo Build complete! 
+    echo Output: dist\SubtitleTranslator\SubtitleTranslator.exe
+    echo ===================================
+) else (
+    echo Build FAILED. Check the output above for errors.
+)
 pause

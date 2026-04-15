@@ -1,12 +1,36 @@
 import json
 import os
+import sys
 from typing import Dict, List, Any
 
 CONFIG_FILE = "settings.json"
 
+
+def _get_config_path() -> str:
+    """Resolve config path for both dev and PyInstaller-bundled mode.
+    
+    In bundled mode, settings.json is initially inside _MEIPASS (read-only).
+    We store the writable copy next to the actual .exe so user changes persist.
+    """
+    if getattr(sys, 'frozen', False):
+        # Running as PyInstaller bundle
+        exe_dir = os.path.dirname(sys.executable)
+        user_config = os.path.join(exe_dir, CONFIG_FILE)
+        if not os.path.exists(user_config):
+            # Copy default from bundle on first run
+            bundled = os.path.join(sys._MEIPASS, CONFIG_FILE)
+            if os.path.exists(bundled):
+                import shutil
+                shutil.copy2(bundled, user_config)
+        return user_config
+    else:
+        # Dev mode — file next to the script
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', CONFIG_FILE)
+
+
 class ConfigManager:
-    def __init__(self, config_path: str = CONFIG_FILE):
-        self.config_path = config_path
+    def __init__(self, config_path: str = None):
+        self.config_path = config_path or _get_config_path()
         self.config = self._load_config()
 
     def _get_default_config(self) -> Dict[str, Any]:
