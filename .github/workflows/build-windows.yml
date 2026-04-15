@@ -22,7 +22,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        
+
+    - name: Create default settings.json
+      run: |
+        echo '{"keys":{"openai":[],"gemini":[],"nvidia":[]},"custom_providers":{},"default_provider":"openai","default_model":"gpt-4o-mini","key_selection_mode":"auto"}' > settings.json
+      shell: bash
+
     - name: Build Executable with PyInstaller
       run: |
         pyinstaller --noconfirm --onedir --windowed --name "SubtitleTranslator" --add-data "core;core" --add-data "ui;ui" --add-data "settings.json;." main.py
