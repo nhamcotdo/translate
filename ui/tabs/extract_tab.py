@@ -6,10 +6,8 @@ from tkinter import filedialog, messagebox
 
 
 class ExtractTab(ctk.CTkFrame):
-    """Tab for extracting subtitles from video/audio using Whisper STT."""
-
     def __init__(self, master, config_manager, **kwargs):
-        super().__init__(master, **kwargs)
+        super().__init__(master, fg_color="transparent", **kwargs)
         self.config_manager = config_manager
         self.stt_service = None
         self.extracted_text = ""
@@ -19,85 +17,89 @@ class ExtractTab(ctk.CTkFrame):
         self._start_ui_queue_loop()
 
         self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(4, weight=1)
+        self.grid_rowconfigure(2, weight=1)
 
-        # Row 0: Title
-        ctk.CTkLabel(self, text="Extract Subtitles from Video/Audio", font=ctk.CTkFont(size=16, weight="bold")).grid(
-            row=0, column=0, columnspan=2, padx=10, pady=(10, 5), sticky="w"
-        )
+        # --- Settings Card ---
+        self.settings_card = ctk.CTkFrame(self)
+        self.settings_card.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 5))
+        self.settings_card.grid_columnconfigure(7, weight=1)
 
-        # Row 1: Options
-        self.opt_frame = ctk.CTkFrame(self)
-        self.opt_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
-
-        ctk.CTkLabel(self.opt_frame, text="Model:").pack(side="left", padx=5)
+        ctk.CTkLabel(self.settings_card, text="Whisper Model:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=(15, 5), pady=15, sticky="w")
         self.model_var = ctk.StringVar(value="base")
         self.model_dropdown = ctk.CTkOptionMenu(
-            self.opt_frame,
+            self.settings_card,
             variable=self.model_var,
             values=["tiny", "base", "small", "medium", "large"],
+            cursor="hand2"
         )
-        self.model_dropdown.pack(side="left", padx=5)
+        self.model_dropdown.grid(row=0, column=1, padx=5, pady=15, sticky="w")
 
-        ctk.CTkLabel(self.opt_frame, text="Language:").pack(side="left", padx=5)
+        ctk.CTkLabel(self.settings_card, text="Audio Lang:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, padx=(15, 5), pady=15, sticky="w")
         self.lang_var = ctk.StringVar(value="auto")
-        self.lang_entry = ctk.CTkEntry(self.opt_frame, textvariable=self.lang_var, width=80)
-        self.lang_entry.pack(side="left", padx=5)
+        self.lang_entry = ctk.CTkEntry(self.settings_card, textvariable=self.lang_var, width=80)
+        self.lang_entry.grid(row=0, column=3, padx=5, pady=15, sticky="w")
 
-        ctk.CTkLabel(self.opt_frame, text="Format:").pack(side="left", padx=5)
+        ctk.CTkLabel(self.settings_card, text="Output Format:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=4, padx=(15, 5), pady=15, sticky="w")
         self.format_var = ctk.StringVar(value="srt")
         self.format_dropdown = ctk.CTkOptionMenu(
-            self.opt_frame,
+            self.settings_card,
             variable=self.format_var,
             values=["srt", "vtt"],
+            cursor="hand2",
+            width=80
         )
-        self.format_dropdown.pack(side="left", padx=5)
+        self.format_dropdown.grid(row=0, column=5, padx=5, pady=15, sticky="w")
 
-        # Row 2: File selection
-        self.file_frame = ctk.CTkFrame(self)
-        self.file_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
+        # --- File Card ---
+        self.file_card = ctk.CTkFrame(self)
+        self.file_card.grid(row=1, column=0, sticky="ew", padx=10, pady=5)
+        self.file_card.grid_columnconfigure(1, weight=1)
 
-        self.load_btn = ctk.CTkButton(self.file_frame, text="Select Video/Audio File", command=self.select_file)
-        self.load_btn.pack(side="left", padx=5)
-        self.file_label = ctk.CTkLabel(self.file_frame, text="No file selected.")
-        self.file_label.pack(side="left", padx=5, fill="x", expand=True)
+        self.load_btn = ctk.CTkButton(self.file_card, text="🎬 Select Video/Audio", command=self.select_file, cursor="hand2", height=32, fg_color="#1E293B", border_color="#3B82F6", border_width=1)
+        self.load_btn.grid(row=0, column=0, padx=15, pady=15, sticky="w")
+        
+        self.file_label = ctk.CTkLabel(self.file_card, text="No file selected...", text_color="gray")
+        self.file_label.grid(row=0, column=1, padx=10, pady=15, sticky="w")
 
-        # Row 3: Actions
-        self.action_frame = ctk.CTkFrame(self)
-        self.action_frame.grid(row=3, column=0, columnspan=2, sticky="ew", padx=10, pady=5)
+        # --- Output Area ---
+        self.text_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.text_frame.grid(row=2, column=0, sticky="nsew", padx=10, pady=5)
+        self.text_frame.grid_columnconfigure(0, weight=1)
+        self.text_frame.grid_rowconfigure(1, weight=1)
 
-        self.extract_btn = ctk.CTkButton(self.action_frame, text="Extract Subtitles", command=self.start_extraction)
-        self.extract_btn.pack(side="left", padx=5)
+        ctk.CTkLabel(self.text_frame, text="Extracted Subtitles", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.output_text = ctk.CTkTextbox(self.text_frame, border_spacing=10)
+        self.output_text.grid(row=1, column=0, sticky="nsew")
 
-        self.progress = ctk.CTkProgressBar(self.action_frame, width=300)
-        self.progress.pack(side="left", padx=10, fill="x", expand=True)
+        # --- Action Bar ---
+        self.action_bar = ctk.CTkFrame(self, fg_color="transparent")
+        self.action_bar.grid(row=3, column=0, sticky="ew", padx=10, pady=10)
+        self.action_bar.grid_columnconfigure(1, weight=1)
+
+        self.extract_btn = ctk.CTkButton(self.action_bar, text="▶ Start Extraction", font=ctk.CTkFont(weight="bold"), command=self.start_extraction, cursor="hand2", height=40)
+        self.extract_btn.grid(row=0, column=0, sticky="w")
+
+        self.progress_frame = ctk.CTkFrame(self.action_bar, fg_color="transparent")
+        self.progress_frame.grid(row=0, column=1, sticky="ew", padx=20)
+        self.progress_frame.grid_columnconfigure(0, weight=1)
+        
+        self.status_label = ctk.CTkLabel(self.progress_frame, text="Ready", text_color="gray", font=ctk.CTkFont(size=12))
+        self.status_label.grid(row=0, column=0, sticky="w", pady=(0, 2))
+        
+        self.progress = ctk.CTkProgressBar(self.progress_frame, height=8)
+        self.progress.grid(row=1, column=0, sticky="ew")
         self.progress.set(0)
 
-        self.status_label = ctk.CTkLabel(self.action_frame, text="")
-        self.status_label.pack(side="right", padx=5)
+        self.save_btn = ctk.CTkButton(self.action_bar, text="💾 Save File", command=self.save_file, cursor="hand2", fg_color="#10B981", hover_color="#059669", height=40)
+        self.save_btn.grid(row=0, column=2, sticky="e", padx=(0, 10))
 
-        # Row 4: Output
-        ctk.CTkLabel(self, text="Extracted Subtitles:").grid(row=4, column=0, padx=10, sticky="sw")
-        self.output_text = ctk.CTkTextbox(self, height=300)
-        self.output_text.grid(row=5, column=0, columnspan=2, sticky="nsew", padx=10, pady=5)
-        self.grid_rowconfigure(5, weight=1)
-
-        # Row 6: Save & Send to Translate
-        self.bottom_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.bottom_frame.grid(row=6, column=0, columnspan=2, sticky="ew", padx=10, pady=10)
-
-        self.save_btn = ctk.CTkButton(self.bottom_frame, text="Save to File", command=self.save_file)
-        self.save_btn.pack(side="right", padx=5)
-
-        self.send_btn = ctk.CTkButton(self.bottom_frame, text="Send to Translate Tab", command=self.send_to_translate)
-        self.send_btn.pack(side="right", padx=5)
+        self.send_btn = ctk.CTkButton(self.action_bar, text="↗ Send to Translate", command=self.send_to_translate, cursor="hand2", fg_color="#8B5CF6", hover_color="#7C3AED", height=40)
+        self.send_btn.grid(row=0, column=3, sticky="e")
 
         self.selected_file = None
-        self.translate_tab = None  # Will be set externally
+        self.translate_tab = None
 
     def set_translate_tab(self, translate_tab):
-        """Set reference to translate tab for sending extracted subtitles."""
         self.translate_tab = translate_tab
 
     def _start_ui_queue_loop(self):
@@ -119,7 +121,7 @@ class ExtractTab(ctk.CTkFrame):
         if filename:
             self.selected_file = filename
             basename = os.path.basename(filename)
-            self.file_label.configure(text=basename)
+            self.file_label.configure(text=basename, text_color=("black", "white"))
 
     def log_status(self, msg: str):
         self.ui_queue.put(lambda m=msg: self.status_label.configure(text=m))
@@ -153,7 +155,6 @@ class ExtractTab(ctk.CTkFrame):
         try:
             from core.stt_service import STTService
 
-            # Create or reuse service (reload if model changed)
             if self.stt_service is None or self.stt_service.model_size != model_size:
                 self.stt_service = STTService(model_size=model_size)
 
@@ -163,7 +164,6 @@ class ExtractTab(ctk.CTkFrame):
                 progress_callback=self.update_progress,
             )
 
-            # Format output
             fmt = self.extracted_format
             if fmt == "srt":
                 output = STTService.segments_to_srt(segments)
@@ -171,7 +171,6 @@ class ExtractTab(ctk.CTkFrame):
                 output = STTService.segments_to_vtt(segments)
 
             self.extracted_text = output
-
             self.ui_queue.put(lambda o=output, dl=detected_lang: self._show_result(o, dl))
 
         except Exception as e:
@@ -182,7 +181,7 @@ class ExtractTab(ctk.CTkFrame):
     def _show_result(self, output, detected_lang):
         self.output_text.delete("0.0", "end")
         self.output_text.insert("0.0", output)
-        self.log_status(f"Done! Language: {detected_lang}")
+        self.log_status(f"Done! Detected Audio Language: {detected_lang}")
 
     def _show_error(self, err):
         self.output_text.delete("0.0", "end")
@@ -218,11 +217,7 @@ class ExtractTab(ctk.CTkFrame):
         if self.translate_tab:
             self.translate_tab.input_text.delete("0.0", "end")
             self.translate_tab.input_text.insert("0.0", content)
-            # Switch to translate tab
-            tabview = self.master.master  # CTkTabview
+            tabview = self.master.master
             tabview.set("Translate")
-            messagebox.showinfo("Sent", "Subtitles sent to Translate tab.")
         else:
             messagebox.showerror("Error", "Translate tab not available.")
-
-
