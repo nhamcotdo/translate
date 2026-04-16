@@ -1,5 +1,6 @@
 import threading
 import queue
+import time
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 
@@ -125,12 +126,24 @@ class TranslateTab(ctk.CTkFrame):
         self.progress_frame.grid(row=0, column=2, sticky="ew", padx=20)
         self.progress_frame.grid_columnconfigure(0, weight=1)
         
-        self.status_label = ctk.CTkLabel(self.progress_frame, text="Ready", text_color="gray", font=ctk.CTkFont(size=12))
-        self.status_label.grid(row=0, column=0, sticky="w", pady=(0, 2))
+        status_row = ctk.CTkFrame(self.progress_frame, fg_color="transparent")
+        status_row.grid(row=0, column=0, sticky="ew", pady=(0, 2))
+        status_row.grid_columnconfigure(0, weight=1)
+        
+        self.status_label = ctk.CTkLabel(status_row, text="Ready", text_color="gray", font=ctk.CTkFont(size=12))
+        self.status_label.grid(row=0, column=0, sticky="w")
+        
+        self.time_label = ctk.CTkLabel(status_row, text="", text_color="#94A3B8", font=ctk.CTkFont(size=11))
+        self.time_label.grid(row=0, column=1, sticky="e")
         
         self.progress = ctk.CTkProgressBar(self.progress_frame, height=8)
         self.progress.grid(row=1, column=0, sticky="ew")
         self.progress.set(0)
+        
+        # Time tracking state
+        self._translation_start_time = None
+        self._translation_running = False
+        self._timer_job = None
 
         self.save_btn = ctk.CTkButton(self.action_bar, text="💾 Save File", command=self.save_file, cursor="hand2", fg_color="#10B981", hover_color="#059669", height=40)
         self.save_btn.grid(row=0, column=3, sticky="e")
@@ -254,8 +267,37 @@ class TranslateTab(ctk.CTkFrame):
         self.output_text.insert("end", msg + "\n")
         self.output_text.see("end")
 
+    def _format_duration(self, seconds: float) -> str:
+        """Format seconds into mm:ss or hh:mm:ss."""
+        seconds = int(seconds)
+        if seconds < 0:
+            seconds = 0
+        hrs, rem = divmod(seconds, 3600)
+        mins, secs = divmod(rem, 60)
+        if hrs > 0:
+            return f"{hrs}:{mins:02d}:{secs:02d}"
+        return f"{mins:02d}:{secs:02d}"
+
+    def _update_timer(self):
+        """Update elapsed and estimated time labels every second."""
+        if not self._translation_running or self._translation_start_time is None:
+            return
+        elapsed = time.time() - self._translation_start_time
+        elapsed_str = self._format_duration(elapsed)
+        
+        est_str = ""
+        if hasattr(self, '_chunks_done') and hasattr(self, '_chunks_total') and self._chunks_done > 0:
+            avg_per_chunk = elapsed / self._chunks_done
+            remaining = (self._chunks_total - self._chunks_done) * avg_per_chunk
+            est_str = f"  ⏳ ~{self._format_duration(remaining)} left"
+        
+        self.time_label.configure(text=f"⏱ {elapsed_str}{est_str}")
+        self._timer_job = self.after(1000, self._update_timer)
+
     def update_progress(self, current: int, total: int):
         val = current / total if total > 0 else 0
+        self._chunks_done = current
+        self._chunks_total = total
         self.ui_queue.put(lambda v=val: self.progress.set(v))
         self.log_status(f"Processing chunk {current}/{total}...")
 
@@ -304,6 +346,14 @@ class TranslateTab(ctk.CTkFrame):
         self.translate_btn.configure(state="disabled")
         self.cancel_btn.configure(state="normal")
         
+        # Start time tracking
+        self._translation_start_time = time.time()
+        self._translation_running = True
+        self._chunks_done = 0
+        self._chunks_total = 0
+        self.time_label.configure(text="⏱ 00:00")
+        self._update_timer()
+        
         self.cancel_event = threading.Event()
         threading.Thread(target=self._run_translation_thread, args=(engine, vtt_input, target_lang, model_name, pre_ctx, chunk_size), daemon=True).start()
 
@@ -342,6 +392,14 @@ class TranslateTab(ctk.CTkFrame):
             self.log(f"\n[ERROR] Translation failed: {e}")
             self.log_status("Translation failed.")
         finally:
+            self._translation_running = False
+            if self._timer_job:
+                self.after_cancel(self._timer_job)
+                self._timer_job = None
+            # Show final elapsed time
+            if self._translation_start_time:
+                total_elapsed = time.time() - self._translation_start_time
+                self.ui_queue.put(lambda t=total_elapsed: self.time_label.configure(text=f"✅ Total: {self._format_duration(t)}"))
             self.ui_queue.put(lambda: self.translate_btn.configure(state="normal"))
             self.ui_queue.put(lambda: self.cancel_btn.configure(state="disabled"))
 
