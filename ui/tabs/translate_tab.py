@@ -6,12 +6,13 @@ from tkinter import filedialog, messagebox
 
 from core.engine import TranslationEngine
 from core.translator import TranslatorService, OpenAIProvider, GeminiProvider, CustomOpenAIProvider, NvidiaProvider
-
+from ui.translations import get_tr
 
 class TranslateTab(ctk.CTkFrame):
     def __init__(self, master, config_manager, **kwargs):
         super().__init__(master, fg_color="transparent", **kwargs)
         self.config_manager = config_manager
+        self.tr = get_tr(self.config_manager)
         self.detected_format = "vtt"
 
         self.ui_queue = queue.Queue()
@@ -26,35 +27,35 @@ class TranslateTab(ctk.CTkFrame):
         
         self.settings_card.grid_columnconfigure(5, weight=1)
         
-        ctk.CTkLabel(self.settings_card, text="Provider:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=(15, 5), pady=10, sticky="w")
+        ctk.CTkLabel(self.settings_card, text=self.tr("Provider:"), font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=(15, 5), pady=10, sticky="w")
         self.provider_var = ctk.StringVar(value="openai")
         self.provider_dropdown = ctk.CTkOptionMenu(self.settings_card, variable=self.provider_var, command=self.on_provider_change, cursor="hand2")
         self.provider_dropdown.grid(row=0, column=1, padx=5, pady=10, sticky="w")
 
-        ctk.CTkLabel(self.settings_card, text="Model:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, padx=(15, 5), pady=10, sticky="w")
-        self.model_var = ctk.StringVar(value="Loading...")
+        ctk.CTkLabel(self.settings_card, text=self.tr("Model:"), font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, padx=(15, 5), pady=10, sticky="w")
+        self.model_var = ctk.StringVar(value=self.tr("Loading..."))
         self.model_dropdown = ctk.CTkOptionMenu(self.settings_card, variable=self.model_var, cursor="hand2")
         self.model_dropdown.grid(row=0, column=3, padx=5, pady=10, sticky="w")
 
-        ctk.CTkLabel(self.settings_card, text="Key Mode:", font=ctk.CTkFont(weight="bold")).grid(row=0, column=4, padx=(15, 5), pady=10, sticky="w")
-        self.key_mode_var = ctk.StringVar(value="Auto-Rotate")
-        self.key_mode_dropdown = ctk.CTkOptionMenu(self.settings_card, variable=self.key_mode_var, values=["Auto-Rotate", "Specific Key"], cursor="hand2")
+        ctk.CTkLabel(self.settings_card, text=self.tr("Key Mode:"), font=ctk.CTkFont(weight="bold")).grid(row=0, column=4, padx=(15, 5), pady=10, sticky="w")
+        self.key_mode_var = ctk.StringVar(value=self.tr("Auto-Rotate"))
+        self.key_mode_dropdown = ctk.CTkOptionMenu(self.settings_card, variable=self.key_mode_var, values=[self.tr("Auto-Rotate"), self.tr("Specific Key")], cursor="hand2")
         self.key_mode_dropdown.grid(row=0, column=5, padx=5, pady=10, sticky="w")
 
-        ctk.CTkLabel(self.settings_card, text="Target Lang:", font=ctk.CTkFont(weight="bold")).grid(row=1, column=0, padx=(15, 5), pady=(0, 15), sticky="w")
+        ctk.CTkLabel(self.settings_card, text=self.tr("Target Lang:"), font=ctk.CTkFont(weight="bold")).grid(row=1, column=0, padx=(15, 5), pady=(0, 15), sticky="w")
         self.lang_var = ctk.StringVar(value="Vietnamese")
         self.lang_entry = ctk.CTkEntry(self.settings_card, textvariable=self.lang_var, width=140)
         self.lang_entry.grid(row=1, column=1, padx=5, pady=(0, 15), sticky="w")
 
-        ctk.CTkLabel(self.settings_card, text="Chunk Size:", font=ctk.CTkFont(weight="bold")).grid(row=1, column=2, padx=(15, 5), pady=(0, 15), sticky="w")
+        ctk.CTkLabel(self.settings_card, text=self.tr("Chunk Size:"), font=ctk.CTkFont(weight="bold")).grid(row=1, column=2, padx=(15, 5), pady=(0, 15), sticky="w")
         self.chunk_var = ctk.StringVar(value="1000")
         self.chunk_entry = ctk.CTkEntry(self.settings_card, textvariable=self.chunk_var, width=60)
         self.chunk_entry.grid(row=1, column=3, padx=5, pady=(0, 15), sticky="w")
 
-        self.load_btn = ctk.CTkButton(self.settings_card, text="📂 Load Subtitle File", command=self.load_file, cursor="hand2", fg_color="#1E293B", border_color="#3B82F6", border_width=1)
+        self.load_btn = ctk.CTkButton(self.settings_card, text=self.tr("📂 Load Subtitle File"), command=self.load_file, cursor="hand2", fg_color="#1E293B", border_color="#3B82F6", border_width=1)
         self.load_btn.grid(row=1, column=4, columnspan=2, padx=15, pady=(0, 15), sticky="w")
         
-        self.file_label = ctk.CTkLabel(self.settings_card, text="No file selected...", text_color="gray")
+        self.file_label = ctk.CTkLabel(self.settings_card, text=self.tr("No file selected..."), text_color="gray")
         self.file_label.grid(row=1, column=6, padx=5, pady=(0, 15), sticky="e")
 
         # --- Context Card ---
@@ -64,7 +65,7 @@ class TranslateTab(ctk.CTkFrame):
 
         ctx_header = ctk.CTkFrame(self.ctx_card, fg_color="transparent")
         ctx_header.pack(fill="x", padx=10, pady=(10, 5))
-        ctk.CTkLabel(ctx_header, text="Context / Background Details:", font=ctk.CTkFont(weight="bold")).pack(side="left")
+        ctk.CTkLabel(ctx_header, text=self.tr("Context / Background Details:"), font=ctk.CTkFont(weight="bold")).pack(side="left")
         
         self.style_var = ctk.StringVar(value="Custom/Manual")
         self.style_dropdown = ctk.CTkOptionMenu(
@@ -75,7 +76,7 @@ class TranslateTab(ctk.CTkFrame):
             cursor="hand2"
         )
         self.style_dropdown.pack(side="right")
-        ctk.CTkLabel(ctx_header, text="Quick Style:").pack(side="right", padx=10)
+        ctk.CTkLabel(ctx_header, text=self.tr("Quick Style:")).pack(side="right", padx=10)
 
         self.context_text = ctk.CTkTextbox(self.ctx_card, height=60, border_spacing=5)
         self.context_text.pack(fill="x", padx=10, pady=(0, 10))
@@ -89,16 +90,16 @@ class TranslateTab(ctk.CTkFrame):
 
         input_header = ctk.CTkFrame(self.text_frame, fg_color="transparent")
         input_header.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
-        ctk.CTkLabel(input_header, text="Input Subtitles (VTT/SRT)", font=ctk.CTkFont(weight="bold")).pack(side="left")
+        ctk.CTkLabel(input_header, text=self.tr("Input Subtitles (VTT/SRT)"), font=ctk.CTkFont(weight="bold")).pack(side="left")
         
-        self.clear_input_btn = ctk.CTkButton(input_header, text="✕ Clear", width=60, height=24, fg_color="#334155", hover_color="#475569", cursor="hand2", command=lambda: self.input_text.delete("0.0", "end"))
+        self.clear_input_btn = ctk.CTkButton(input_header, text=self.tr("✕ Clear"), width=60, height=24, fg_color="#334155", hover_color="#475569", cursor="hand2", command=lambda: self.input_text.delete("0.0", "end"))
         self.clear_input_btn.pack(side="right")
 
         output_header = ctk.CTkFrame(self.text_frame, fg_color="transparent")
         output_header.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
-        ctk.CTkLabel(output_header, text="Translated Output", font=ctk.CTkFont(weight="bold")).pack(side="left")
+        ctk.CTkLabel(output_header, text=self.tr("Translated Output"), font=ctk.CTkFont(weight="bold")).pack(side="left")
         
-        self.clear_output_btn = ctk.CTkButton(output_header, text="✕ Clear", width=60, height=24, fg_color="#334155", hover_color="#475569", cursor="hand2", command=lambda: self.output_text.delete("0.0", "end"))
+        self.clear_output_btn = ctk.CTkButton(output_header, text=self.tr("✕ Clear"), width=60, height=24, fg_color="#334155", hover_color="#475569", cursor="hand2", command=lambda: self.output_text.delete("0.0", "end"))
         self.clear_output_btn.pack(side="right")
 
         self.input_text = ctk.CTkTextbox(self.text_frame, border_spacing=10, wrap="word")
@@ -116,10 +117,10 @@ class TranslateTab(ctk.CTkFrame):
         self.action_bar.grid(row=3, column=0, sticky="ew", padx=10, pady=10)
         self.action_bar.grid_columnconfigure(1, weight=1)
 
-        self.translate_btn = ctk.CTkButton(self.action_bar, text="▶ Start Translation", font=ctk.CTkFont(weight="bold"), command=self.start_translation, cursor="hand2", height=40)
+        self.translate_btn = ctk.CTkButton(self.action_bar, text=self.tr("▶ Start Translation"), font=ctk.CTkFont(weight="bold"), command=self.start_translation, cursor="hand2", height=40)
         self.translate_btn.grid(row=0, column=0, sticky="w")
         
-        self.cancel_btn = ctk.CTkButton(self.action_bar, text="⏹ Cancel", font=ctk.CTkFont(weight="bold"), command=self.cancel_translation, cursor="hand2", height=40, fg_color="#DC2626", hover_color="#B91C1C", state="disabled")
+        self.cancel_btn = ctk.CTkButton(self.action_bar, text=self.tr("⏹ Cancel"), font=ctk.CTkFont(weight="bold"), command=self.cancel_translation, cursor="hand2", height=40, fg_color="#DC2626", hover_color="#B91C1C", state="disabled")
         self.cancel_btn.grid(row=0, column=1, sticky="w", padx=(10, 0))
 
         self.progress_frame = ctk.CTkFrame(self.action_bar, fg_color="transparent")
@@ -130,7 +131,7 @@ class TranslateTab(ctk.CTkFrame):
         status_row.grid(row=0, column=0, sticky="ew", pady=(0, 2))
         status_row.grid_columnconfigure(0, weight=1)
         
-        self.status_label = ctk.CTkLabel(status_row, text="Ready", text_color="gray", font=ctk.CTkFont(size=12))
+        self.status_label = ctk.CTkLabel(status_row, text=self.tr("Ready"), text_color="gray", font=ctk.CTkFont(size=12))
         self.status_label.grid(row=0, column=0, sticky="w")
         
         self.time_label = ctk.CTkLabel(status_row, text="", text_color="#94A3B8", font=ctk.CTkFont(size=11))
@@ -145,7 +146,7 @@ class TranslateTab(ctk.CTkFrame):
         self._translation_running = False
         self._timer_job = None
 
-        self.save_btn = ctk.CTkButton(self.action_bar, text="💾 Save File", command=self.save_file, cursor="hand2", fg_color="#10B981", hover_color="#059669", height=40)
+        self.save_btn = ctk.CTkButton(self.action_bar, text=self.tr("💾 Save File"), command=self.save_file, cursor="hand2", fg_color="#10B981", hover_color="#059669", height=40)
         self.save_btn.grid(row=0, column=3, sticky="e")
 
         self.after(100, self.refresh_providers)
@@ -195,8 +196,8 @@ class TranslateTab(ctk.CTkFrame):
         self.after(50, self._start_ui_queue_loop)
 
     def on_provider_change(self, value):
-        self.model_dropdown.configure(values=["Loading models..."])
-        self.model_var.set("Loading...")
+        self.model_dropdown.configure(values=[self.tr("Loading models...")])
+        self.model_var.set(self.tr("Loading..."))
         threading.Thread(target=self._fetch_models_thread, args=(value,), daemon=True).start()
 
     def _fetch_models_thread(self, provider_id):
@@ -223,7 +224,7 @@ class TranslateTab(ctk.CTkFrame):
             models = []
                 
         if not models:
-            models = ["No models found"]
+            models = [self.tr("No models found")]
             
         self.ui_queue.put(lambda m=models: self._update_model_dropdown(m))
         
@@ -255,7 +256,7 @@ class TranslateTab(ctk.CTkFrame):
             content = self.output_text.get("0.0", "end")
             with open(filename, "w", encoding="utf-8") as f:
                 f.write(content.strip())
-            messagebox.showinfo("Saved", "File saved successfully.")
+            messagebox.showinfo(self.tr("Saved"), self.tr("File saved successfully."))
 
     def log(self, msg: str):
         self.ui_queue.put(lambda m=msg: self._append_log(m))
@@ -305,23 +306,23 @@ class TranslateTab(ctk.CTkFrame):
         vtt_input = self.input_text.get("0.0", "end").strip()
         pre_ctx = self.context_text.get("0.0", "end").strip()
         if not vtt_input:
-            messagebox.showerror("Error", "Please input text or load a file.")
+            messagebox.showerror(self.tr("Error"), self.tr("Please input text or load a file."))
             return
             
         provider_id = self.provider_var.get()
         model_name = self.model_var.get()
         target_lang = self.lang_var.get()
-        auto_rotate = self.key_mode_var.get() == "Auto-Rotate"
+        auto_rotate = self.key_mode_var.get() == self.tr("Auto-Rotate")
         
         try:
             chunk_size = int(self.chunk_var.get().strip())
         except ValueError:
-            messagebox.showerror("Error", "Chunk Size must be a valid integer.")
+            messagebox.showerror(self.tr("Error"), self.tr("Chunk Size must be a valid integer."))
             return
         
         keys = self.config_manager.get_keys(provider_id)
         if not keys and provider_id in ["openai", "gemini", "nvidia"]:
-            messagebox.showerror("Error", f"No API keys configured for {provider_id}.")
+            messagebox.showerror(self.tr("Error"), self.tr(f"No API keys configured for {provider_id}."))
             return
             
         if provider_id == "openai":
@@ -333,7 +334,7 @@ class TranslateTab(ctk.CTkFrame):
         else:
             cust = self.config_manager.get_custom_providers().get(provider_id)
             if not cust:
-                messagebox.showerror("Error", "Custom provider not found.")
+                messagebox.showerror(self.tr("Error"), self.tr("Custom provider not found."))
                 return
             provider_inst = CustomOpenAIProvider(base_url=cust.get("base_url"), custom_headers=cust.get("headers", {}))
 
@@ -342,7 +343,7 @@ class TranslateTab(ctk.CTkFrame):
 
         self.output_text.delete("0.0", "end")
         self.log(f"Starting translation to {target_lang} using {provider_id} ({model_name})...")
-        self.log_status("Initializing translation engine...")
+        self.log_status(self.tr("Initializing translation engine..."))
         self.translate_btn.configure(state="disabled")
         self.cancel_btn.configure(state="normal")
         
@@ -360,7 +361,7 @@ class TranslateTab(ctk.CTkFrame):
     def cancel_translation(self):
         if self.cancel_event:
             self.cancel_event.set()
-            self.log_status("Cancelling...")
+            self.log_status(self.tr("Cancelling..."))
             self.cancel_btn.configure(state="disabled")
 
     def _run_translation_thread(self, engine, vtt_input, target_lang, model_name, pre_ctx, chunk_size):
@@ -377,7 +378,7 @@ class TranslateTab(ctk.CTkFrame):
             )
             
             if self.cancel_event and self.cancel_event.is_set():
-                self.log_status("Translation cancelled.")
+                self.log_status(self.tr("Translation cancelled."))
                 # We still show what we got decoded so far
                 if final_text:
                     self.ui_queue.put(lambda f=final_text: self._set_final_output(f))
@@ -385,12 +386,12 @@ class TranslateTab(ctk.CTkFrame):
                 self.detected_format = detected_fmt
                 fmt_label = detected_fmt.upper()
                 self.log(f"\n--- FINAL TRANSLATED {fmt_label} ---\n" + final_text)
-                self.log_status("Translation completed successfully!")
+                self.log_status(self.tr("Translation completed successfully!"))
                 self.ui_queue.put(lambda f=final_text: self._set_final_output(f))
                 
         except Exception as e:
             self.log(f"\n[ERROR] Translation failed: {e}")
-            self.log_status("Translation failed.")
+            self.log_status(self.tr("Translation failed."))
         finally:
             self._translation_running = False
             if self._timer_job:

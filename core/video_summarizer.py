@@ -47,14 +47,14 @@ You are an expert video editor. I will provide you with the subtitles of a video
 Your task is to select the {num_highlights} most engaging, interesting, or informative segments to create a highlight reel.
 
 CRITICAL RULES FOR SELECTING SEGMENTS:
-1. COMPLETE CONTEXT: A segment must NOT be cut off abruptly. Include preceding and succeeding sentences to ensure the dialogue or action makes complete sense.
+1. COMPLETE CONTEXT & ACTION RESOLUTION: A segment must NOT be cut off abruptly exactly when someone stops speaking. You MUST predict if an action naturally follows the dialogue (e.g., a reaction, walking away, an impact) and intentionally extend the `end` timestamp further to capture that concluding action. Always include preceding and succeeding sentences to ensure the scene makes complete sense.
 2. DURATION: Each segment MUST be at least 15 seconds long, but ideally 30-60 seconds to provide a rich context.
 3. FORMAT: Return ONLY a valid JSON array of objects. Do not use markdown blocks unless it is strictly valid JSON.
 4. JSON STRUCTURE:
 [
   {{
     "start": "HH:MM:SS.mmm", // The start timestamp (expanded backwards slightly for context)
-    "end": "HH:MM:SS.mmm", // The end timestamp (expanded forwards slightly for context)
+    "end": "HH:MM:SS.mmm", // The end timestamp (predict and extend further to capture post-dialogue actions)
     "reason": "Brief explanation of why this was chosen",
     "transcript": "The expected transcript of this segment"
   }}
@@ -99,32 +99,45 @@ Subtitles:
         """
         Generates narration text for each selected segment.
         """
+        if not highlights:
+            return highlights
+
         if log_callback:
             log_callback(f"Generating narration in {target_lang}...")
             
-        highlights_json = json.dumps(highlights, indent=2, ensure_ascii=False)
+        # Simplify payload to reduce token count and processing time
+        simplified_segments = []
+        for i, hl in enumerate(highlights):
+            simplified_segments.append({
+                "index": i + 1,
+                "transcript": hl.get('transcript', '')
+            })
+            
+        highlights_json = json.dumps(simplified_segments, ensure_ascii=False)
         
         prompt = f"""
-You are a charismatic video storyteller. I will provide you with a chronological list of video segments selected for a highlight reel.
-For EACH segment, write a short, engaging description/narration.
+You are a charismatic video storyteller. Write a short, engaging narration for each of the following video segments.
 
 RULES:
 1. Write strictly in {target_lang}.
-2. Keep the narration concise (1-2 short sentences maximum per segment).
-3. The narration should be engaging, explaining what is happening or why it's interesting.
-4. Return ONLY a valid JSON array of objects, one for each segment. Do not include extra text.
-5. JSON STRUCTURE:
+2. Keep it concise (1-2 short sentences maximum per segment).
+3. Make it engaging, describing what happens or why it is interesting based on the transcript.
+4. Return ONLY a valid JSON array of strings in the EXACT same order as the segments.
+5. Do NOT include markdown formatting like ```json.
+
+Example output format:
 [
-  {{
-    "index": 0, // Match the order of the segments
-    "narration": "The translated/written narration text"
-  }}
+  "First engaging narration here.",
+  "Second engaging narration here."
 ]
 
-Segments Data:
+Segments to narrate:
 {highlights_json}
 """
         try:
+            if log_callback:
+                log_callback("Waiting for AI to write narrations...")
+                
             response = self.translator_service.translate_with_retry(prompt, model_name, log_callback)
             
             start_idx = response.find('[')
@@ -135,13 +148,13 @@ Segments Data:
                 
                 # Merge narration into highlights
                 for i, hl in enumerate(highlights):
-                    if i < len(narrations):
-                        hl['narration'] = narrations[i].get('narration', '')
+                    if i < len(narrations) and isinstance(narrations[i], str):
+                        hl['narration'] = narrations[i].strip()
                     else:
                         hl['narration'] = ""
                 return highlights
             else:
-                raise ValueError("Could not parse JSON from AI response")
+                raise ValueError("Could not parse JSON array from AI response")
         except Exception as e:
             if log_callback:
                 log_callback(f"[ERROR] Narration generation failed: {e}")

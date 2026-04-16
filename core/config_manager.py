@@ -43,7 +43,8 @@ class ConfigManager:
             "custom_providers": {},
             "default_provider": "openai",
             "default_model": "gpt-4o-mini",
-            "key_selection_mode": "auto" # or "specific"
+            "key_selection_mode": "auto", # or "specific"
+            "language": "en"
         }
 
     def _load_config(self) -> Dict[str, Any]:

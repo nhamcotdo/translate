@@ -5,17 +5,19 @@ from ui.tabs.settings_tab import SettingsTab
 from ui.tabs.translate_tab import TranslateTab
 from ui.tabs.extract_tab import ExtractTab
 from ui.tabs.summary_tab import SummaryTab
+from ui.translations import get_tr
 
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("AI Subtitle Translator")
+        self.config_manager = ConfigManager()
+        self.tr = get_tr(self.config_manager)
+
+        self.title(self.tr("AI Subtitle Translator"))
         self.geometry("1000x720")
         self.minsize(800, 600)
-
-        self.config_manager = ConfigManager()
 
         # Configure grid
         self.grid_rowconfigure(0, weight=1)
@@ -25,24 +27,24 @@ class App(ctk.CTk):
         self.tabview = ctk.CTkTabview(self, corner_radius=10)
         self.tabview.grid(row=0, column=0, padx=12, pady=12, sticky="nsew")
 
-        self.tabview.add("Translate")
-        self.tabview.add("Extract Subtitles")
-        self.tabview.add("Video Summary")
-        self.tabview.add("Settings")
+        self.tabview.add(self.tr("Translate"))
+        self.tabview.add(self.tr("Extract Subtitles"))
+        self.tabview.add(self.tr("Video Summary"))
+        self.tabview.add(self.tr("Settings"))
 
         # Instantiate tabs
-        self.translate_tab = TranslateTab(self.tabview.tab("Translate"), self.config_manager)
+        self.translate_tab = TranslateTab(self.tabview.tab(self.tr("Translate")), self.config_manager)
         self.translate_tab.pack(expand=True, fill="both")
 
-        self.extract_tab = ExtractTab(self.tabview.tab("Extract Subtitles"), self.config_manager)
+        self.extract_tab = ExtractTab(self.tabview.tab(self.tr("Extract Subtitles")), self.config_manager)
         self.extract_tab.pack(expand=True, fill="both")
         self.extract_tab.set_translate_tab(self.translate_tab)
 
-        self.summary_tab = SummaryTab(self.tabview.tab("Video Summary"), self.config_manager, self.translate_tab)
+        self.summary_tab = SummaryTab(self.tabview.tab(self.tr("Video Summary")), self.config_manager, self.translate_tab)
         self.summary_tab.pack(expand=True, fill="both")
 
         self.settings_tab = SettingsTab(
-            self.tabview.tab("Settings"),
+            self.tabview.tab(self.tr("Settings")),
             self.config_manager,
             providers_updated_callback=self.translate_tab.refresh_providers,
         )
