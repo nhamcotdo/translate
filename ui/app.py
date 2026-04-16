@@ -4,6 +4,7 @@ from core.config_manager import ConfigManager
 from ui.tabs.settings_tab import SettingsTab
 from ui.tabs.translate_tab import TranslateTab
 from ui.tabs.extract_tab import ExtractTab
+from ui.tabs.summary_tab import SummaryTab
 
 
 class App(ctk.CTk):
@@ -26,6 +27,7 @@ class App(ctk.CTk):
 
         self.tabview.add("Translate")
         self.tabview.add("Extract Subtitles")
+        self.tabview.add("Video Summary")
         self.tabview.add("Settings")
 
         # Instantiate tabs
@@ -35,6 +37,9 @@ class App(ctk.CTk):
         self.extract_tab = ExtractTab(self.tabview.tab("Extract Subtitles"), self.config_manager)
         self.extract_tab.pack(expand=True, fill="both")
         self.extract_tab.set_translate_tab(self.translate_tab)
+
+        self.summary_tab = SummaryTab(self.tabview.tab("Video Summary"), self.config_manager, self.translate_tab)
+        self.summary_tab.pack(expand=True, fill="both")
 
         self.settings_tab = SettingsTab(
             self.tabview.tab("Settings"),
