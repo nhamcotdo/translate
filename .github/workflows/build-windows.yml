@@ -34,7 +34,7 @@ jobs:
 
     - name: Build Executable with PyInstaller
       run: |
-        pyinstaller --noconfirm --onedir --windowed --name "SubtitleTranslator" --add-data "core;core" --add-data "ui;ui" --add-data "theme.json;." --add-data "settings.json;." --collect-all imageio_ffmpeg --exclude-module=matplotlib --exclude-module=IPython --exclude-module=pandas --exclude-module=scipy --exclude-module=unittest main.py
+        pyinstaller --noconfirm --onedir --windowed --name "SubtitleTranslator" --add-data "core;core" --add-data "ui;ui" --add-data "theme.json;." --add-data "settings.json;." --collect-all imageio_ffmpeg --exclude-module=matplotlib --exclude-module=IPython --exclude-module=pandas --exclude-module=scipy main.py
 
     - name: Create ZIP archive
       run: |
