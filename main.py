@@ -10,9 +10,24 @@ sys.path.insert(0, current_dir)
 # Ensure ffmpeg from imageio-ffmpeg is in the PATH so Whisper can find it
 try:
     import imageio_ffmpeg
+    import shutil
+    import stat
     ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-    os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_exe)
-except ImportError:
+    ffmpeg_dir = os.path.dirname(ffmpeg_exe)
+    
+    # Whisper explicitly calls "ffmpeg". If the bundled binary is named differently
+    # (e.g., ffmpeg-win32-v...exe), we need to create an exact 'ffmpeg.exe' copy.
+    ffmpeg_alias = os.path.join(ffmpeg_dir, "ffmpeg.exe" if os.name == "nt" else "ffmpeg")
+    if os.path.abspath(ffmpeg_exe) != os.path.abspath(ffmpeg_alias) and not os.path.exists(ffmpeg_alias):
+        try:
+            shutil.copyfile(ffmpeg_exe, ffmpeg_alias)
+            st = os.stat(ffmpeg_alias)
+            os.chmod(ffmpeg_alias, st.st_mode | stat.S_IEXEC)
+        except Exception:
+            pass
+            
+    os.environ["PATH"] += os.pathsep + ffmpeg_dir
+except Exception:
     pass
 
 # Set up logging for production and dev
