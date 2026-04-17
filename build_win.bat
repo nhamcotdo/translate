@@ -29,7 +29,7 @@ rmdir /s /q build dist 2>nul
 echo.
 echo Building executable with PyInstaller...
 REM Note: Windows uses semicolon (;) for --add-data separator
-pyinstaller --noconfirm --onedir --windowed --name "SubtitleTranslator" --add-data "core;core" --add-data "ui;ui" --add-data "theme.json;." --add-data "settings.json;." main.py
+pyinstaller --noconfirm --onedir --windowed --name "SubtitleTranslator" --add-data "core;core" --add-data "ui;ui" --add-data "theme.json;." --add-data "settings.json;." --collect-all imageio_ffmpeg main.py
 
 echo.
 if exist "dist\SubtitleTranslator\SubtitleTranslator.exe" (

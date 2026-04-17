@@ -10,7 +10,7 @@ docker run --rm -v "$(pwd):/src/" -w /src/ --platform linux/amd64 tobix/pywine:3
 echo '=> Installing Python dependencies for Windows...' && \
 wine pip install -r requirements.txt && \
 echo '=> Running PyInstaller (Windows Build)...' && \
-wine pyinstaller --noconfirm --onedir --windowed --name 'SubtitleTranslator' --add-data 'core;core' --add-data 'ui;ui' --add-data 'theme.json;.' --add-data 'settings.json;.' main.py
+wine pyinstaller --noconfirm --onedir --windowed --name 'SubtitleTranslator' --add-data 'core;core' --add-data 'ui;ui' --add-data 'theme.json;.' --add-data 'settings.json;.' --collect-all imageio_ffmpeg main.py
 "
 
 if [ $? -eq 0 ]; then

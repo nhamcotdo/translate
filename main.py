@@ -7,6 +7,14 @@ import logging
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
+# Ensure ffmpeg from imageio-ffmpeg is in the PATH so Whisper can find it
+try:
+    import imageio_ffmpeg
+    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_exe)
+except ImportError:
+    pass
+
 # Set up logging for production and dev
 if getattr(sys, 'frozen', False):
     log_dir = os.path.dirname(sys.executable)
