@@ -203,6 +203,21 @@ Segments to narrate:
                     
                     subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
                     
+                    # Get actual encoded duration to prevent SRT drift
+                    try:
+                        probe_cmd = [
+                            "ffprobe", "-v", "error", 
+                            "-show_entries", "format=duration", 
+                            "-of", "default=noprint_wrappers=1:nokey=1", 
+                            segment_file
+                        ]
+                        actual_dur_str = subprocess.check_output(probe_cmd, text=True).strip()
+                        hl['actual_duration'] = float(actual_dur_str)
+                    except Exception as e:
+                        if log_callback:
+                            log_callback(f"[WARNING] Could not probe exact duration: {e}")
+                        hl['actual_duration'] = duration
+                    
                     # Add to concat list
                     # FFmpeg requires forward slashes or escaped backslashes for file paths
                     safe_path = segment_file.replace("\\", "/")
@@ -254,7 +269,7 @@ Segments to narrate:
         for i, hl in enumerate(highlights):
             start_s = hl.get('padded_start_sec', self._parse_timestamp_to_seconds(hl['start']))
             end_s = hl.get('padded_end_sec', self._parse_timestamp_to_seconds(hl['end']))
-            duration = end_s - start_s
+            duration = hl.get('actual_duration', end_s - start_s)
             
             new_start = current_time
             new_end = current_time + duration
