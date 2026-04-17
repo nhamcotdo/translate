@@ -6,3 +6,4 @@ settings.json
 build/
 dist/
 *.spec
+models/base.pt

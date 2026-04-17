@@ -27,8 +27,9 @@ class BaseProvider(ABC):
 
 class OpenAIProvider(BaseProvider):
     def translate(self, prompt: str, model_name: str, api_key: str) -> str:
+        client_key = api_key if api_key.strip() else "dummy-key"
         client = OpenAI(
-            api_key=api_key,
+            api_key=client_key,
             http_client=httpx.Client(verify=certifi.where())
         )
         response = client.chat.completions.create(
@@ -41,7 +42,8 @@ class OpenAIProvider(BaseProvider):
         return isinstance(e, OpenAIRateLimitError)
 
     def get_available_models(self, api_key: str) -> List[str]:
-        client = OpenAI(api_key=api_key, http_client=httpx.Client(verify=certifi.where()))
+        client_key = api_key if api_key.strip() else "dummy-key"
+        client = OpenAI(api_key=client_key, http_client=httpx.Client(verify=certifi.where()))
         try:
             models = client.models.list()
             # Sort models by creation time or alphabetically
@@ -114,8 +116,9 @@ class CustomOpenAIProvider(BaseProvider):
 
 class NvidiaProvider(BaseProvider):
     def translate(self, prompt: str, model_name: str, api_key: str) -> str:
+        client_key = api_key if api_key.strip() else "dummy-key"
         client = OpenAI(
-            api_key=api_key,
+            api_key=client_key,
             base_url="https://integrate.api.nvidia.com/v1",
             http_client=httpx.Client(verify=certifi.where())
         )
@@ -131,8 +134,9 @@ class NvidiaProvider(BaseProvider):
         return isinstance(e, OpenAIRateLimitError)
 
     def get_available_models(self, api_key: str) -> List[str]:
+        client_key = api_key if api_key.strip() else "dummy-key"
         client = OpenAI(
-            api_key=api_key,
+            api_key=client_key,
             base_url="https://integrate.api.nvidia.com/v1",
             http_client=httpx.Client(verify=certifi.where())
         )

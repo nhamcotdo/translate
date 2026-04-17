@@ -44,7 +44,9 @@ class STTService:
                     else:
                         logger.info(f"Local model not found. Downloading/Loading from cache: {self.model_size}")
 
-                    self.model = whisper.load_model(model_name_or_path, device=self.device)
+                    with open(os.devnull, "w", encoding="utf-8") as devnull:
+                        with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
+                            self.model = whisper.load_model(model_name_or_path, device=self.device)
                     logger.info("Model loaded successfully")
 
     def transcribe(
@@ -75,8 +77,8 @@ class STTService:
         import whisper
 
         with self.lock:
-            with open(os.devnull, "w") as devnull:
-                with contextlib.redirect_stderr(devnull):
+            with open(os.devnull, "w", encoding="utf-8") as devnull:
+                with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
                     result = self.model.transcribe(
                         file_path,
                         language=None if language == "auto" else language,
