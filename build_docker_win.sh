@@ -8,9 +8,10 @@ echo "Note: This will download a lightweight Windows/Wine container, install dep
 
 docker run --rm -v "$(pwd):/src/" -w /src/ --platform linux/amd64 tobix/pywine:3.10 bash -c "
 echo '=> Installing Python dependencies for Windows...' && \
+wine pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
 wine pip install -r requirements.txt && \
 echo '=> Running PyInstaller (Windows Build)...' && \
-wine pyinstaller --noconfirm --onedir --windowed --name 'SubtitleTranslator' --add-data 'core;core' --add-data 'ui;ui' --add-data 'theme.json;.' --add-data 'settings.json;.' --collect-all imageio_ffmpeg main.py
+wine pyinstaller --noconfirm --onedir --windowed --name 'SubtitleTranslator' --add-data 'core;core' --add-data 'ui;ui' --add-data 'theme.json;.' --add-data 'settings.json;.' --collect-all imageio_ffmpeg --exclude-module=matplotlib --exclude-module=IPython --exclude-module=pandas --exclude-module=scipy --exclude-module=unittest main.py
 "
 
 if [ $? -eq 0 ]; then

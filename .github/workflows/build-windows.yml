@@ -24,6 +24,7 @@ jobs:
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
         pip install -r requirements.txt
 
     - name: Create default settings.json
@@ -33,7 +34,7 @@ jobs:
 
     - name: Build Executable with PyInstaller
       run: |
-        pyinstaller --noconfirm --onedir --windowed --name "SubtitleTranslator" --add-data "core;core" --add-data "ui;ui" --add-data "theme.json;." --add-data "settings.json;." --collect-all imageio_ffmpeg main.py
+        pyinstaller --noconfirm --onedir --windowed --name "SubtitleTranslator" --add-data "core;core" --add-data "ui;ui" --add-data "theme.json;." --add-data "settings.json;." --collect-all imageio_ffmpeg --exclude-module=matplotlib --exclude-module=IPython --exclude-module=pandas --exclude-module=scipy --exclude-module=unittest main.py
 
     - name: Create ZIP archive
       run: |
