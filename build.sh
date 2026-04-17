@@ -13,6 +13,6 @@ echo "Cleaning previous builds..."
 rm -rf build dist *.spec
 
 echo "Building executable with PyInstaller..."
-python -m PyInstaller --noconfirm --onedir --windowed --name "SubtitleTranslator" --add-data "core:core" --add-data "ui:ui" main.py
+python -m PyInstaller --noconfirm --onedir --windowed --name "SubtitleTranslator" --add-data "core:core" --add-data "ui:ui" --add-data "theme.json:." --add-data "settings.json:." main.py
 
 echo "Build complete. Check the 'dist' folder."
