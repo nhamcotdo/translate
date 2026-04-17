@@ -31,13 +31,9 @@ jobs:
         echo '{"keys":{"openai":[],"gemini":[],"nvidia":[]},"custom_providers":{},"default_provider":"openai","default_model":"gpt-4o-mini","key_selection_mode":"auto"}' > settings.json
       shell: bash
 
-    - name: Download Whisper Base Model
-      run: |
-        python -c "import whisper, os; os.makedirs('models', exist_ok=True); whisper._download(whisper._MODELS['base'], 'models', False)"
-
     - name: Build Executable with PyInstaller
       run: |
-        pyinstaller --noconfirm --onedir --windowed --name "SubtitleTranslator" --add-data "core;core" --add-data "ui;ui" --add-data "theme.json;." --add-data "settings.json;." --add-data "models;models" main.py
+        pyinstaller --noconfirm --onedir --windowed --name "SubtitleTranslator" --add-data "core;core" --add-data "ui;ui" --add-data "theme.json;." --add-data "settings.json;." main.py
 
     - name: Create ZIP archive
       run: |
