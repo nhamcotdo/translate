@@ -390,6 +390,8 @@ class TranslateTab(ctk.CTkFrame):
                 self.ui_queue.put(lambda f=final_text: self._set_final_output(f))
                 
         except Exception as e:
+            import logging
+            logging.exception("Error during translation thread:")
             self.log(f"\n[ERROR] Translation failed: {e}")
             self.log_status(self.tr("Translation failed."))
         finally:

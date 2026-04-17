@@ -198,6 +198,8 @@ class ExtractTab(ctk.CTkFrame):
 
         except Exception as e:
             if not (self.cancel_event and self.cancel_event.is_set()):
+                import logging
+                logging.exception("Error during extraction thread:")
                 self.ui_queue.put(lambda err=str(e): self._show_error(err))
         finally:
             self.ui_queue.put(lambda: self.extract_btn.configure(state="normal"))
