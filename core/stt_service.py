@@ -22,16 +22,29 @@ class STTService:
         self.model = None
         self.lock = threading.Lock()
 
+    def get_base_path(self):
+        if getattr(sys, 'frozen', False):
+            return sys._MEIPASS
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
     def load_model(self, progress_callback: Optional[Callable] = None):
         """Load the Whisper model (thread-safe, lazy)."""
         if self.model is None:
             with self.lock:
                 if self.model is None:
                     if progress_callback:
-                        progress_callback(0.05, f"Loading Whisper model '{self.model_size}' (first time may download)...")
+                        progress_callback(0.05, f"Loading Whisper model '{self.model_size}'...")
                     import whisper
-                    logger.info(f"Loading Whisper model: {self.model_size}")
-                    self.model = whisper.load_model(self.model_size, device=self.device)
+                    model_name_or_path = self.model_size
+                    local_model_path = os.path.join(self.get_base_path(), "models", f"{self.model_size}.pt")
+                    
+                    if os.path.exists(local_model_path):
+                        model_name_or_path = local_model_path
+                        logger.info(f"Loading Whisper model from local bundled path: {local_model_path}")
+                    else:
+                        logger.info(f"Local model not found. Downloading/Loading from cache: {self.model_size}")
+
+                    self.model = whisper.load_model(model_name_or_path, device=self.device)
                     logger.info("Model loaded successfully")
 
     def transcribe(
