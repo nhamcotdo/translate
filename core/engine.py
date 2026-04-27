@@ -12,6 +12,7 @@ class TranslationEngine:
 
     def build_prompt(self, chunk: List[Dict], target_lang: str, pre_context: str) -> str:
         lines_to_translate = []
+        total_lines = len(chunk)
         for idx, s in enumerate(chunk):
             lines_to_translate.append(f"{idx + 1}|{s['text']}")
         
@@ -23,17 +24,19 @@ class TranslationEngine:
 
         prompt = f"""
 You are an expert movie subtitle translator.
-
-Rules:
-- Keep the meaning and tone natural.
-- Maintain context between consecutive lines.
-- Do NOT merge or split lines.
-- Strictly keep the output format: ID|Translated_Text
+CRITICAL INSTRUCTIONS:
+1. Target Language: {target_lang}. You MUST translate EXACTLY into this language. Do not leave lines in the original language.
+2. Completeness: You MUST translate every single line. I am providing EXACTLY {total_lines} lines. The output MUST contain EXACTLY {total_lines} lines. Do NOT skip, drop, merge, or split any lines. All IDs from 1 to {total_lines} MUST be present in the output.
+3. Format: You MUST strictly use the format: ID|Translated_Text
+4. Output Only: Provide ONLY the translated lines. No explanations, no introductory text, no extra spaces.
+5. Context: Keep the meaning and tone natural, and maintain context between consecutive lines.
 
 {context_block}
-Translate to {target_lang}:
+Translate the following subtitle content into {target_lang}:
 
+<subtitles>
 {text_payload}
+</subtitles>
 """
         return prompt.strip()
 
