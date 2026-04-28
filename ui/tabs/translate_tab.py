@@ -6,6 +6,8 @@ from tkinter import filedialog, messagebox
 
 from core.engine import TranslationEngine
 from core.translator import TranslatorService, OpenAIProvider, GeminiProvider, CustomOpenAIProvider, NvidiaProvider
+from core.vtt_parser import SubtitleProcessor
+from core.auto_fix import run_auto_fix
 from ui.translations import get_tr
 
 class TranslateTab(ctk.CTkFrame):
@@ -146,8 +148,19 @@ class TranslateTab(ctk.CTkFrame):
         self._translation_running = False
         self._timer_job = None
 
+        self.autofix_btn = ctk.CTkButton(
+            self.action_bar,
+            text=self.tr("🔧 Auto-Fix Chinese"),
+            command=self.start_auto_fix,
+            cursor="hand2",
+            fg_color="#7C3AED",
+            hover_color="#6D28D9",
+            height=40
+        )
+        self.autofix_btn.grid(row=0, column=3, sticky="e", padx=(10, 0))
+
         self.save_btn = ctk.CTkButton(self.action_bar, text=self.tr("💾 Save File"), command=self.save_file, cursor="hand2", fg_color="#10B981", hover_color="#059669", height=40)
-        self.save_btn.grid(row=0, column=3, sticky="e")
+        self.save_btn.grid(row=0, column=4, sticky="e", padx=(10, 0))
 
         self.after(100, self.refresh_providers)
 
@@ -409,3 +422,117 @@ class TranslateTab(ctk.CTkFrame):
     def _set_final_output(self, final_text):
         self.output_text.delete("0.0", "end")
         self.output_text.insert("0.0", final_text)
+
+    # ── Auto-Fix Chinese ──────────────────────────────────────────────────
+
+    def _build_service(self):
+        """Re-create a TranslatorService from current UI settings."""
+        provider_id = self.provider_var.get()
+        auto_rotate = self.key_mode_var.get() == self.tr("Auto-Rotate")
+        keys = self.config_manager.get_keys(provider_id)
+
+        if provider_id == "openai":
+            provider_inst = OpenAIProvider()
+        elif provider_id == "gemini":
+            provider_inst = GeminiProvider()
+        elif provider_id == "nvidia":
+            provider_inst = NvidiaProvider()
+        else:
+            cust = self.config_manager.get_custom_providers().get(provider_id)
+            if not cust:
+                return None, None
+            provider_inst = CustomOpenAIProvider(
+                base_url=cust.get("base_url"),
+                custom_headers=cust.get("headers", {})
+            )
+
+        service = TranslatorService(provider_inst, keys, auto_rotate=auto_rotate)
+        return service, provider_id
+
+    def start_auto_fix(self):
+        """Detect Chinese chars in the output box and re-translate them."""
+        output_content = self.output_text.get("0.0", "end").strip()
+        if not output_content:
+            messagebox.showerror(self.tr("Error"), self.tr("Output is empty. Please translate first."))
+            return
+
+        model_name = self.model_var.get()
+        target_lang = self.lang_var.get()
+
+        service, provider_id = self._build_service()
+        if service is None:
+            messagebox.showerror(self.tr("Error"), self.tr("Custom provider not found."))
+            return
+
+        keys = self.config_manager.get_keys(provider_id)
+        if not keys and provider_id in ["openai", "gemini", "nvidia"]:
+            messagebox.showerror(self.tr("Error"), self.tr(f"No API keys configured for {provider_id}."))
+            return
+
+        # Parse the current output back to subtitle dicts
+        detected_fmt = SubtitleProcessor.detect_format(output_content)
+        subs = SubtitleProcessor.parse_auto(output_content)
+        if not subs:
+            messagebox.showerror(self.tr("Error"), self.tr("Could not parse output as VTT/SRT."))
+            return
+
+        self.autofix_btn.configure(state="disabled")
+        self.translate_btn.configure(state="disabled")
+        self.cancel_btn.configure(state="normal")
+        self.log_status(self.tr("Auto-fixing Chinese characters..."))
+        self.progress.set(0)
+
+        self._translation_start_time = time.time()
+        self._translation_running = True
+        self._chunks_done = 0
+        self._chunks_total = 0
+        self.time_label.configure(text="⏱ 00:00")
+        self._update_timer()
+
+        self.cancel_event = threading.Event()
+        threading.Thread(
+            target=self._run_auto_fix_thread,
+            args=(subs, detected_fmt, target_lang, model_name, service),
+            daemon=True
+        ).start()
+
+    def _run_auto_fix_thread(self, subs, detected_fmt, target_lang, model_name, service):
+        try:
+            fixed_subs = run_auto_fix(
+                subs=subs,
+                target_lang=target_lang,
+                model_name=model_name,
+                translator_service=service,
+                context_window=2,
+                log_callback=self.log,
+                progress_callback=self.update_progress,
+                cancel_event=self.cancel_event,
+            )
+
+            final_text = SubtitleProcessor.to_format(fixed_subs, detected_fmt)
+
+            if self.cancel_event and self.cancel_event.is_set():
+                self.log_status(self.tr("Auto-fix cancelled."))
+            else:
+                self.log_status(self.tr("Auto-fix completed!"))
+
+            self.ui_queue.put(lambda f=final_text: self._set_final_output(f))
+
+        except Exception as e:
+            import logging
+            logging.exception("Error during auto-fix thread:")
+            self.log(f"\n[ERROR] Auto-fix failed: {e}")
+            self.log_status(self.tr("Auto-fix failed."))
+        finally:
+            self._translation_running = False
+            if self._timer_job:
+                self.after_cancel(self._timer_job)
+                self._timer_job = None
+            if self._translation_start_time:
+                total_elapsed = time.time() - self._translation_start_time
+                self.ui_queue.put(lambda t=total_elapsed: self.time_label.configure(
+                    text=f"✅ Total: {self._format_duration(t)}"
+                ))
+            self.ui_queue.put(lambda: self.translate_btn.configure(state="normal"))
+            self.ui_queue.put(lambda: self.cancel_btn.configure(state="disabled"))
+            self.ui_queue.put(lambda: self.autofix_btn.configure(state="normal"))

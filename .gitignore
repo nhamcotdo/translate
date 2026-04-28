@@ -8,3 +8,4 @@ dist/
 *.spec
 models/base.pt
 app.log
+.DS_Store
