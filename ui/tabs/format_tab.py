@@ -8,6 +8,7 @@ HTML tag stripping, and line-merge/split utilities.
 
 import re
 import os
+import difflib
 import threading
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
@@ -199,7 +200,8 @@ class FormatTab(ctk.CTkFrame):
         self._loaded_filename = None
 
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(1, weight=3)   # main pane
+        self.grid_rowconfigure(3, weight=1)   # diff panel
 
         # ── Toolbar ─────────────────────────────────────────────────────────
         toolbar = ctk.CTkFrame(self)
@@ -337,13 +339,57 @@ class FormatTab(ctk.CTkFrame):
                                       anchor="w")
         self.out_stats.grid(row=2, column=1, sticky="ew", padx=(4, 0), pady=(2, 0))
 
-        # Bottom stats strip
+        # ── Bottom bar (format detect + diff toggle) ───────────────────────
         bot = ctk.CTkFrame(self, fg_color="transparent")
-        bot.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 6))
+        bot.grid(row=2, column=0, sticky="ew", padx=10, pady=(2, 2))
         self.detect_lbl = ctk.CTkLabel(bot, text="Format: –",
                                        text_color="#64748B",
                                        font=ctk.CTkFont(size=12))
         self.detect_lbl.pack(side="left")
+
+        self._diff_visible = True
+        self.diff_toggle_btn = ctk.CTkButton(
+            bot, text="▼ Diff (0 changes)", width=160, height=26,
+            fg_color="#1E293B", hover_color="#334155",
+            border_color="#475569", border_width=1,
+            cursor="hand2", font=ctk.CTkFont(size=12),
+            command=self._toggle_diff,
+        )
+        self.diff_toggle_btn.pack(side="right", padx=4)
+
+        # ── Diff panel ───────────────────────────────────────────────────────
+        self.diff_frame = ctk.CTkFrame(self, fg_color="#0F172A",
+                                       border_color="#334155", border_width=1)
+        self.diff_frame.grid(row=3, column=0, sticky="nsew", padx=10, pady=(0, 8))
+        self.diff_frame.grid_columnconfigure(0, weight=1)
+        self.diff_frame.grid_rowconfigure(1, weight=1)
+
+        diff_hdr = ctk.CTkFrame(self.diff_frame, fg_color="#1E293B")
+        diff_hdr.grid(row=0, column=0, sticky="ew")
+        ctk.CTkLabel(diff_hdr, text="📋 Changed Lines",
+                     font=ctk.CTkFont(weight="bold", size=12),
+                     text_color="#CBD5E1").pack(side="left", padx=10, pady=4)
+        self.diff_summary_lbl = ctk.CTkLabel(
+            diff_hdr, text="",
+            text_color="#94A3B8", font=ctk.CTkFont(size=11))
+        self.diff_summary_lbl.pack(side="left", padx=6)
+
+        self.diff_text = ctk.CTkTextbox(
+            self.diff_frame, fg_color="#0F172A",
+            font=ctk.CTkFont(family="Courier", size=12),
+            wrap="none", border_spacing=8,
+            activate_scrollbars=True,
+        )
+        self.diff_text.grid(row=1, column=0, sticky="nsew", padx=4, pady=(0, 4))
+
+        # Colour tags (Tkinter tag_config on the inner Text widget)
+        inner = self.diff_text._textbox
+        inner.tag_config("add",  foreground="#4ADE80", background="#052e16")
+        inner.tag_config("del",  foreground="#F87171", background="#2d0a0a")
+        inner.tag_config("ctx",  foreground="#64748B")
+        inner.tag_config("sep",  foreground="#334155")
+        inner.tag_config("info", foreground="#60A5FA")
+        self._diff_inner = inner
 
         # Undo stack
         self._undo_stack = []
@@ -353,11 +399,13 @@ class FormatTab(ctk.CTkFrame):
     def _get_input(self) -> str:
         return self.input_text.get("0.0", "end").rstrip("\n")
 
-    def _set_output(self, text: str):
+    def _set_output(self, text: str, original: str = None):
         self.output_text.configure(state="normal")
         self.output_text.delete("0.0", "end")
         self.output_text.insert("0.0", text)
         self._update_out_stats(text)
+        src = original if original is not None else self._get_input()
+        self._show_diff(src, text)
 
     def _push_undo(self):
         self._undo_stack.append(self._get_input())
@@ -388,6 +436,67 @@ class FormatTab(ctk.CTkFrame):
 
     def _status(self, msg: str):
         self.status_lbl.configure(text=msg)
+
+    def _toggle_diff(self):
+        if self._diff_visible:
+            self.diff_frame.grid_remove()
+            self.grid_rowconfigure(3, weight=0)
+            self._diff_visible = False
+            lbl = self.diff_toggle_btn.cget("text")
+            self.diff_toggle_btn.configure(text=lbl.replace("▼", "▶"))
+        else:
+            self.diff_frame.grid()
+            self.grid_rowconfigure(3, weight=1)
+            self._diff_visible = True
+            lbl = self.diff_toggle_btn.cget("text")
+            self.diff_toggle_btn.configure(text=lbl.replace("▶", "▼"))
+
+    def _show_diff(self, before: str, after: str):
+        """Compute line-level diff and render it with colour tags."""
+        a_lines = before.splitlines(keepends=True)
+        b_lines = after.splitlines(keepends=True)
+        diff = list(difflib.ndiff(a_lines, b_lines))
+
+        inner = self._diff_inner
+        inner.configure(state="normal")
+        inner.delete("1.0", "end")
+
+        added = removed = 0
+        line_num = 0
+
+        for item in diff:
+            code = item[:2]          # '+ ', '- ', '  ', '? '
+            content = item[2:].rstrip("\n")
+
+            if code == "+ ":
+                added += 1
+                line_num += 1
+                prefix = f"+{line_num:>5} │ "
+                inner.insert("end", prefix + content + "\n", "add")
+            elif code == "- ":
+                removed += 1
+                prefix = f"-      │ "
+                inner.insert("end", prefix + content + "\n", "del")
+            elif code == "  ":
+                line_num += 1
+                prefix = f" {line_num:>5} │ "
+                inner.insert("end", prefix + content + "\n", "ctx")
+            # skip '? ' hint lines
+
+        if added == 0 and removed == 0:
+            inner.insert("end", "  (no changes)\n", "ctx")
+
+        inner.configure(state="disabled")
+
+        # Update button label + summary
+        total = added + removed
+        btn_arrow = "▼" if self._diff_visible else "▶"
+        self.diff_toggle_btn.configure(
+            text=f"{btn_arrow} Diff  +{added} / -{removed}"
+        )
+        self.diff_summary_lbl.configure(
+            text=f"+{added} added   -{removed} removed   {total} total changes"
+        )
 
     def _max_chars(self) -> int:
         try:
