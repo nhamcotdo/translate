@@ -6,7 +6,15 @@ VI_TRANSLATIONS = {
     "Translate": "Dịch",
     "Extract Subtitles": "Trích xuất Phụ đề",
     "Video Summary": "Tóm tắt Video",
+    "Format Subtitles": "Định dạng Phụ đề",
     "Settings": "Cài đặt",
+
+    # Format Tab
+    "Load": "Tải",
+    "Save": "Lưu",
+    "Input (SRT / VTT)": "Đầu vào (SRT / VTT)",
+    "Output (Formatted)": "Kết quả (Đã định dạng)",
+
     "Restart Required": "Yêu cầu Khởi động lại",
     "Please restart the application to apply language changes.": "Vui lòng khởi động lại ứng dụng để áp dụng thay đổi ngôn ngữ.",
     
