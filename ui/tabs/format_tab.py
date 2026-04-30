@@ -451,44 +451,44 @@ class FormatTab(ctk.CTkFrame):
             lbl = self.diff_toggle_btn.cget("text")
             self.diff_toggle_btn.configure(text=lbl.replace("▶", "▼"))
 
-    def _show_diff(self, before: str, after: str):
-        """Compute line-level diff and render it with colour tags."""
+    def _show_diff(self, before: str, after: str, context: int = 2):
+        """Show only changed hunks with `context` surrounding lines (like git diff)."""
         a_lines = before.splitlines(keepends=True)
         b_lines = after.splitlines(keepends=True)
-        diff = list(difflib.ndiff(a_lines, b_lines))
+
+        # unified_diff already groups changes + context lines
+        hunks = list(difflib.unified_diff(
+            a_lines, b_lines,
+            lineterm="", n=context,
+        ))
 
         inner = self._diff_inner
         inner.configure(state="normal")
         inner.delete("1.0", "end")
 
         added = removed = 0
-        line_num = 0
 
-        for item in diff:
-            code = item[:2]          # '+ ', '- ', '  ', '? '
-            content = item[2:].rstrip("\n")
-
-            if code == "+ ":
-                added += 1
-                line_num += 1
-                prefix = f"+{line_num:>5} │ "
-                inner.insert("end", prefix + content + "\n", "add")
-            elif code == "- ":
-                removed += 1
-                prefix = f"-      │ "
-                inner.insert("end", prefix + content + "\n", "del")
-            elif code == "  ":
-                line_num += 1
-                prefix = f" {line_num:>5} │ "
-                inner.insert("end", prefix + content + "\n", "ctx")
-            # skip '? ' hint lines
-
-        if added == 0 and removed == 0:
+        if not hunks:
             inner.insert("end", "  (no changes)\n", "ctx")
+        else:
+            for line in hunks:
+                # Skip the --- / +++ filename header lines
+                if line.startswith("---") or line.startswith("+++"):
+                    continue
+                if line.startswith("@@"):
+                    # Hunk header: @@ -a,b +c,d @@
+                    inner.insert("end", line + "\n", "sep")
+                elif line.startswith("+"):
+                    added += 1
+                    inner.insert("end", line + "\n", "add")
+                elif line.startswith("-"):
+                    removed += 1
+                    inner.insert("end", line + "\n", "del")
+                else:
+                    inner.insert("end", line + "\n", "ctx")
 
         inner.configure(state="disabled")
 
-        # Update button label + summary
         total = added + removed
         btn_arrow = "▼" if self._diff_visible else "▶"
         self.diff_toggle_btn.configure(
