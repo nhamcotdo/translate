@@ -32,6 +32,7 @@ class App(ctk.CTk):
         self.tabview.add(self.tr("Extract Subtitles"))
         self.tabview.add(self.tr("Video Summary"))
         self.tabview.add(self.tr("Format Subtitles"))
+        self.tabview.add(self.tr("SEO Description"))
         self.tabview.add(self.tr("Settings"))
 
         # Instantiate tabs
@@ -47,6 +48,10 @@ class App(ctk.CTk):
 
         self.format_tab = FormatTab(self.tabview.tab(self.tr("Format Subtitles")), self.config_manager)
         self.format_tab.pack(expand=True, fill="both")
+
+        from ui.tabs.seo_tab import SEOTab
+        self.seo_tab = SEOTab(self.tabview.tab(self.tr("SEO Description")), self.config_manager, self.translate_tab)
+        self.seo_tab.pack(expand=True, fill="both")
 
         self.settings_tab = SettingsTab(
             self.tabview.tab(self.tr("Settings")),

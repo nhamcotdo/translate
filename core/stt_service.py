@@ -79,11 +79,16 @@ class STTService:
         with self.lock:
             with open(os.devnull, "w", encoding="utf-8") as devnull:
                 with contextlib.redirect_stdout(devnull), contextlib.redirect_stderr(devnull):
-                    result = self.model.transcribe(
-                        file_path,
-                        language=None if language == "auto" else language,
-                        verbose=None,
-                    )
+                    try:
+                        result = self.model.transcribe(
+                            file_path,
+                            language=None if language == "auto" else language,
+                            verbose=None,
+                        )
+                    except RuntimeError as e:
+                        if "Output file does not contain any stream" in str(e):
+                            raise ValueError("The selected file does not contain an audio stream. Please select a file with valid audio.")
+                        raise
 
         detected_language = result.get("language", "unknown")
         logger.info(f"Detected language: {detected_language}")
