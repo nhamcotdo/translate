@@ -40,27 +40,42 @@ Translate the following subtitle content into {target_lang}:
 """
         return prompt.strip()
 
-    def translate_chunk(self, chunk: List[Dict], target_lang: str, model_name: str, pre_context: str, log_callback: Callable = None) -> List[Dict]:
+    def translate_chunk(self, chunk: List[Dict], target_lang: str, model_name: str, pre_context: str, log_callback: Callable = None, max_retries: int = 3) -> List[Dict]:
         prompt = self.build_prompt(chunk, target_lang, pre_context)
         
-        content = self.translator_service.translate_with_retry(prompt, model_name, log_callback=log_callback)
+        best_parsed_lines = {}
         
-        # Parse return
-        parsed_lines = {}
-        for line in content.splitlines():
-            line = line.strip()
-            if not line:
-                continue
+        for attempt in range(max_retries):
+            content = self.translator_service.translate_with_retry(prompt, model_name, log_callback=log_callback)
             
-            parts = line.split("|", 1)
-            if len(parts) == 2 and parts[0].isdigit():
-                idx = int(parts[0]) - 1
-                parsed_lines[idx] = parts[1].strip()
+            # Parse return
+            parsed_lines = {}
+            for line in content.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                
+                parts = line.split("|", 1)
+                if len(parts) == 2 and parts[0].isdigit():
+                    idx = int(parts[0]) - 1
+                    parsed_lines[idx] = parts[1].strip()
+                    
+            if len(parsed_lines) == len(chunk):
+                best_parsed_lines = parsed_lines
+                break
+            else:
+                if len(parsed_lines) > len(best_parsed_lines):
+                    best_parsed_lines = parsed_lines
+                if log_callback:
+                    log_callback(f"Warning: Chunk misalignment (got {len(parsed_lines)}/{len(chunk)} lines) on attempt {attempt + 1}. Retrying...")
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(1.5)
                 
         # Reconstruction
         translated_chunk = []
         for idx, s in enumerate(chunk):
-            new_text = parsed_lines.get(idx)
+            new_text = best_parsed_lines.get(idx)
             s_copy = s.copy()
             if new_text:
                 s_copy["text"] = new_text
