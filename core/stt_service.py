@@ -84,6 +84,8 @@ class STTService:
                             file_path,
                             language=None if language == "auto" else language,
                             verbose=None,
+                            condition_on_previous_text=False,
+                            word_timestamps=True,
                         )
                     except RuntimeError as e:
                         if "Output file does not contain any stream" in str(e):

@@ -172,22 +172,44 @@ class TranslatorService:
             except Exception as e:
                 raise Exception(f"Translation failed: {e}")
 
-        attempts = 0
-        max_attempts = len(self.keys) if self.auto_rotate else 1
+        max_rotations = len(self.keys) if self.auto_rotate else 1
+        rotation = 0
         
-        while attempts < max_attempts:
+        while rotation < max_rotations:
             key = self.get_current_key()
-            try:
-                return self.provider.translate(prompt, model_name, key)
-            except Exception as e:
-                is_rl = self.provider.is_rate_limit_error(e)
-                if is_rl and self.auto_rotate:
-                    if log_callback:
-                        log_callback(f"Rate limit hit for key index {self.current_key_idx % len(self.keys)}. Rotating...")
-                    self.next_key()
-                    attempts += 1
-                    time.sleep(1) # Slight pause to avoid spam
-                else:
-                    raise e
+            retries_for_key = 0
+            
+            while retries_for_key < 3:
+                try:
+                    return self.provider.translate(prompt, model_name, key)
+                except Exception as e:
+                    is_rl = self.provider.is_rate_limit_error(e)
+                    is_conn = any(x in str(e) or x in str(type(e)) for x in [
+                        "Connection", "Server disconnected", "RemoteProtocolError", 
+                        "APIConnectionError", "ReadTimeout", "TimeoutError", "ConnectError"
+                    ])
                     
-        raise Exception(f"All {max_attempts} keys exhausted or rate limited.")
+                    if is_rl and self.auto_rotate:
+                        if log_callback:
+                            log_callback(f"Rate limit hit for key index {self.current_key_idx % len(self.keys)}. Rotating...")
+                        self.next_key()
+                        rotation += 1
+                        time.sleep(1)
+                        break  # Break inner loop to try next key
+                    elif is_conn:
+                        retries_for_key += 1
+                        if retries_for_key >= 3:
+                            if log_callback:
+                                log_callback(f"Connection failed repeatedly for key index {self.current_key_idx % len(self.keys)}.")
+                                if self.auto_rotate:
+                                    log_callback("Rotating key...")
+                            self.next_key()
+                            rotation += 1
+                            break  # Give up on this key, try next
+                        if log_callback:
+                            log_callback(f"Network error ({type(e).__name__}). Retrying ({retries_for_key}/3) in 2s...")
+                        time.sleep(2)
+                    else:
+                        raise e
+                        
+        raise Exception("All keys exhausted or connection failed repeatedly.")
