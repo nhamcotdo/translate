@@ -34,17 +34,19 @@ class SubtitleProcessor:
         lines = vtt_text.splitlines()
         results = []
 
-        time_pattern = re.compile(r"(\d{2}:\d{2}:\d{2}\.\d{3}) --> (\d{2}:\d{2}:\d{2}\.\d{3})")
+        time_pattern = re.compile(r"(\d{1,2}:\d{2}:\d{2}[.,]\d{1,3}|\d{1,2}:\d{2}[.,]\d{1,3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[.,]\d{1,3}|\d{1,2}:\d{2}[.,]\d{1,3})")
 
         i = 0
         while i < len(lines):
-            match = time_pattern.match(lines[i])
+            match = time_pattern.search(lines[i])
             if match:
-                start, end = match.groups()
+                start_raw, end_raw = match.groups()
+                start = start_raw.replace(",", ".")
+                end = end_raw.replace(",", ".")
                 i += 1
 
                 text_lines = []
-                while i < len(lines) and lines[i].strip() != "":
+                while i < len(lines) and lines[i].strip() != "" and not time_pattern.search(lines[i]):
                     text_lines.append(lines[i])
                     i += 1
 
@@ -56,7 +58,8 @@ class SubtitleProcessor:
                     "end": end,
                     "text": text
                 })
-            i += 1
+            else:
+                i += 1
 
         return results
 
@@ -66,7 +69,7 @@ class SubtitleProcessor:
         lines = srt_text.splitlines()
         results = []
 
-        time_pattern = re.compile(r"(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})")
+        time_pattern = re.compile(r"(\d{1,2}:\d{2}:\d{2}[.,]\d{1,3}|\d{1,2}:\d{2}[.,]\d{1,3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[.,]\d{1,3}|\d{1,2}:\d{2}[.,]\d{1,3})")
 
         i = 0
         while i < len(lines):
@@ -75,7 +78,7 @@ class SubtitleProcessor:
                 i += 1
                 continue
 
-            match = time_pattern.match(lines[i].strip())
+            match = time_pattern.search(lines[i].strip())
             if match:
                 start_raw, end_raw = match.groups()
                 # Convert SRT timestamps (comma) to internal format (dot)
@@ -84,7 +87,7 @@ class SubtitleProcessor:
                 i += 1
 
                 text_lines = []
-                while i < len(lines) and lines[i].strip() != "":
+                while i < len(lines) and lines[i].strip() != "" and not time_pattern.search(lines[i]):
                     text_lines.append(lines[i])
                     i += 1
 
@@ -96,7 +99,8 @@ class SubtitleProcessor:
                     "end": end,
                     "text": text
                 })
-            i += 1
+            else:
+                i += 1
 
         return results
 

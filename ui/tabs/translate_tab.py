@@ -104,6 +104,9 @@ class TranslateTab(ctk.CTkFrame):
         self.clear_output_btn = ctk.CTkButton(output_header, text=self.tr("✕ Clear"), width=60, height=24, fg_color="#334155", hover_color="#475569", cursor="hand2", command=lambda: self.output_text.delete("0.0", "end"))
         self.clear_output_btn.pack(side="right")
 
+        self.split_output_btn = ctk.CTkButton(output_header, text=self.tr("✂️ Split Lines"), width=100, height=24, fg_color="#0EA5E9", hover_color="#0284C7", cursor="hand2", command=self.split_long_lines)
+        self.split_output_btn.pack(side="right", padx=(0, 10))
+
         self.input_text = ctk.CTkTextbox(self.text_frame, border_spacing=10, wrap="word")
         self.input_text.grid(row=1, column=0, sticky="nsew", padx=(0, 5))
         
@@ -159,8 +162,19 @@ class TranslateTab(ctk.CTkFrame):
         )
         self.autofix_btn.grid(row=0, column=3, sticky="e", padx=(10, 0))
 
+        self.fill_missing_btn = ctk.CTkButton(
+            self.action_bar,
+            text=self.tr("🔍 Detect & Fill Missing"),
+            command=self.start_fill_missing,
+            cursor="hand2",
+            fg_color="#F59E0B",
+            hover_color="#D97706",
+            height=40
+        )
+        self.fill_missing_btn.grid(row=0, column=4, sticky="e", padx=(10, 0))
+
         self.save_btn = ctk.CTkButton(self.action_bar, text=self.tr("💾 Save File"), command=self.save_file, cursor="hand2", fg_color="#10B981", hover_color="#059669", height=40)
-        self.save_btn.grid(row=0, column=4, sticky="e", padx=(10, 0))
+        self.save_btn.grid(row=0, column=5, sticky="e", padx=(10, 0))
 
         self.after(100, self.refresh_providers)
 
@@ -359,6 +373,8 @@ class TranslateTab(ctk.CTkFrame):
         self.log_status(self.tr("Initializing translation engine..."))
         self.translate_btn.configure(state="disabled")
         self.cancel_btn.configure(state="normal")
+        self.autofix_btn.configure(state="disabled")
+        self.fill_missing_btn.configure(state="disabled")
         
         # Start time tracking
         self._translation_start_time = time.time()
@@ -418,6 +434,8 @@ class TranslateTab(ctk.CTkFrame):
                 self.ui_queue.put(lambda t=total_elapsed: self.time_label.configure(text=f"✅ Total: {self._format_duration(t)}"))
             self.ui_queue.put(lambda: self.translate_btn.configure(state="normal"))
             self.ui_queue.put(lambda: self.cancel_btn.configure(state="disabled"))
+            self.ui_queue.put(lambda: self.autofix_btn.configure(state="normal"))
+            self.ui_queue.put(lambda: self.fill_missing_btn.configure(state="normal"))
 
     def _set_final_output(self, final_text):
         self.output_text.delete("0.0", "end")
@@ -478,6 +496,7 @@ class TranslateTab(ctk.CTkFrame):
 
         self.autofix_btn.configure(state="disabled")
         self.translate_btn.configure(state="disabled")
+        self.fill_missing_btn.configure(state="disabled")
         self.cancel_btn.configure(state="normal")
         self.log_status(self.tr("Auto-fixing Chinese characters..."))
         self.progress.set(0)
@@ -536,3 +555,274 @@ class TranslateTab(ctk.CTkFrame):
             self.ui_queue.put(lambda: self.translate_btn.configure(state="normal"))
             self.ui_queue.put(lambda: self.cancel_btn.configure(state="disabled"))
             self.ui_queue.put(lambda: self.autofix_btn.configure(state="normal"))
+            self.ui_queue.put(lambda: self.fill_missing_btn.configure(state="normal"))
+
+    # ── Detect & Fill Missing ─────────────────────────────────────────────
+
+    def start_fill_missing(self):
+        vtt_input = self.input_text.get("0.0", "end").strip()
+        vtt_output = self.output_text.get("0.0", "end").strip()
+        
+        if not vtt_input or not vtt_output:
+            messagebox.showerror(self.tr("Error"), self.tr("Both input and output text must be present."))
+            return
+
+        service, provider_id = self._build_service()
+        if service is None:
+            messagebox.showerror(self.tr("Error"), self.tr("Custom provider not found."))
+            return
+
+        keys = self.config_manager.get_keys(provider_id)
+        if not keys and provider_id in ["openai", "gemini", "nvidia"]:
+            messagebox.showerror(self.tr("Error"), self.tr(f"No API keys configured for {provider_id}."))
+            return
+
+        in_subs = SubtitleProcessor.parse_auto(vtt_input)
+        out_subs = SubtitleProcessor.parse_auto(vtt_output)
+        
+        out_map = {}
+        for s in out_subs:
+            key = f"{s['start']}_{s['end']}"
+            out_map[key] = s['text']
+            
+        missing_subs = []
+        for s in in_subs:
+            key = f"{s['start']}_{s['end']}"
+            if key not in out_map:
+                missing_subs.append(s)
+            elif out_map[key] == s['text'] and s['text'].strip() != "":
+                # Text is exactly identical to input and not empty -> likely untranslated
+                missing_subs.append(s)
+                
+        if not missing_subs:
+            msg = self.tr(f"No missing or untranslated lines detected.\n\nParsed Input: {len(in_subs)} blocks\nParsed Output: {len(out_subs)} blocks\n\nIf the block count differs, it is likely due to the automatic removal of exact duplicates (hallucinations) during the initial translation.")
+            messagebox.showinfo(self.tr("Info"), msg)
+            return
+
+        self.fill_missing_btn.configure(state="disabled")
+        self.autofix_btn.configure(state="disabled")
+        self.translate_btn.configure(state="disabled")
+        self.cancel_btn.configure(state="normal")
+        self.log_status(self.tr(f"Filling {len(missing_subs)} missing lines..."))
+        self.progress.set(0)
+
+        self._translation_start_time = time.time()
+        self._translation_running = True
+        self._chunks_done = 0
+        
+        try:
+            chunk_size = int(self.chunk_var.get().strip())
+        except ValueError:
+            chunk_size = 15
+            
+        self._chunks_total = (len(missing_subs) + chunk_size - 1) // chunk_size
+        self.time_label.configure(text="⏱ 00:00")
+        self._update_timer()
+
+        model_name = self.model_var.get()
+        target_lang = self.lang_var.get()
+        pre_ctx = self.context_text.get("0.0", "end").strip()
+
+        self.cancel_event = threading.Event()
+        threading.Thread(
+            target=self._run_fill_missing_thread,
+            args=(in_subs, out_map, missing_subs, target_lang, model_name, pre_ctx, chunk_size, service),
+            daemon=True
+        ).start()
+
+    def _run_fill_missing_thread(self, in_subs, out_map, missing_subs, target_lang, model_name, pre_ctx, chunk_size, service):
+        try:
+            translated_missing = []
+            chunks = list(SubtitleProcessor.chunk_subs(missing_subs, chunk_size=chunk_size))
+            
+            for i, chunk in enumerate(chunks):
+                if self.cancel_event and self.cancel_event.is_set():
+                    self.log_status(self.tr("Cancelled."))
+                    break
+                    
+                chunk_to_translate = []
+                for s in chunk:
+                    if s["text"].strip():
+                        chunk_to_translate.append(s)
+                        
+                if chunk_to_translate:
+                    engine = TranslationEngine(service)
+                    trans_chunk = engine.translate_chunk(chunk_to_translate, target_lang, model_name, pre_ctx, log_callback=self.log)
+                    trans_dict = { f"{s['start']}_{s['end']}": s["text"] for s in trans_chunk }
+                    
+                    for s in chunk:
+                        key = f"{s['start']}_{s['end']}"
+                        s_copy = s.copy()
+                        if not s["text"].strip():
+                            s_copy["text"] = ""
+                        else:
+                            s_copy["text"] = trans_dict.get(key, s["text"])
+                        translated_missing.append(s_copy)
+                else:
+                    for s in chunk:
+                        s_copy = s.copy()
+                        s_copy["text"] = ""
+                        translated_missing.append(s_copy)
+                        
+                self.update_progress(i + 1, len(chunks))
+
+            trans_missing_map = { f"{s['start']}_{s['end']}": s["text"] for s in translated_missing }
+            
+            final_subs = []
+            for s in in_subs:
+                key = f"{s['start']}_{s['end']}"
+                if key in trans_missing_map:
+                    s_copy = s.copy()
+                    s_copy["text"] = trans_missing_map[key]
+                    final_subs.append(s_copy)
+                elif key in out_map:
+                    s_copy = s.copy()
+                    s_copy["text"] = out_map[key]
+                    final_subs.append(s_copy)
+                else:
+                    final_subs.append(s)
+
+            detected_fmt = SubtitleProcessor.detect_format(self.output_text.get("0.0", "end"))
+            final_text = SubtitleProcessor.to_format(final_subs, detected_fmt)
+
+            self.ui_queue.put(lambda f=final_text: self._set_final_output(f))
+            if not (self.cancel_event and self.cancel_event.is_set()):
+                self.log_status(self.tr("Missing lines filled!"))
+            
+        except Exception as e:
+            import logging
+            logging.exception("Error in fill missing thread")
+            self.log(f"\n[ERROR] Failed to fill missing: {e}")
+            self.log_status(self.tr("Failed to fill missing lines."))
+        finally:
+            self._translation_running = False
+            if self._timer_job:
+                self.after_cancel(self._timer_job)
+                self._timer_job = None
+            if self._translation_start_time:
+                total_elapsed = time.time() - self._translation_start_time
+                self.ui_queue.put(lambda t=total_elapsed: self.time_label.configure(
+                    text=f"✅ Total: {self._format_duration(t)}"
+                ))
+            self.ui_queue.put(lambda: self.translate_btn.configure(state="normal"))
+            self.ui_queue.put(lambda: self.cancel_btn.configure(state="disabled"))
+            self.ui_queue.put(lambda: self.autofix_btn.configure(state="normal"))
+            self.ui_queue.put(lambda: self.fill_missing_btn.configure(state="normal"))
+
+    # ── Split Long Lines ──────────────────────────────────────────────────
+
+    def split_long_lines(self):
+        output_content = self.output_text.get("0.0", "end").strip()
+        if not output_content:
+            messagebox.showerror(self.tr("Error"), self.tr("Output is empty."))
+            return
+
+        dialog = ctk.CTkInputDialog(text=self.tr("Enter max characters per segment/line (e.g., 45):"), title=self.tr("Split Long Lines"))
+        max_chars_str = dialog.get_input()
+        if not max_chars_str:
+            return
+            
+        try:
+            max_chars = int(max_chars_str.strip())
+        except ValueError:
+            messagebox.showerror(self.tr("Error"), self.tr("Please enter a valid integer."))
+            return
+
+        split_to_blocks = messagebox.askyesno(
+            self.tr("Split Mode"), 
+            self.tr("Do you want to split into separate subtitle BLOCKS?\n\nYes = Create new blocks and divide the timestamp proportionally.\nNo = Just add line breaks (Enter) inside the same block.")
+        )
+
+        detected_fmt = SubtitleProcessor.detect_format(output_content)
+        subs = SubtitleProcessor.parse_auto(output_content)
+        
+        def time_to_ms(time_str: str) -> int:
+            time_str = time_str.replace(",", ".")
+            parts = time_str.split(":")
+            if len(parts) == 3:
+                h, m, s_ms = parts
+            else:
+                h = 0
+                m, s_ms = parts
+            
+            if "." in s_ms:
+                s, ms = s_ms.split(".")
+            else:
+                s = s_ms
+                ms = 0
+                
+            return int(h) * 3600000 + int(m) * 60000 + int(s) * 1000 + int(str(ms)[:3].ljust(3, "0"))
+
+        def ms_to_time(ms: float, sep=".") -> str:
+            ms = max(0, int(ms))
+            h = ms // 3600000
+            ms = ms % 3600000
+            m = ms // 60000
+            ms = ms % 60000
+            s = ms // 1000
+            ms = ms % 1000
+            return f"{h:02d}:{m:02d}:{s:02d}{sep}{ms:03d}"
+
+        new_subs = []
+        for s in subs:
+            # Replace single newlines with space, but keep double newlines if any (rare in subtitles)
+            text = s["text"].replace("\n", " ").strip()
+            
+            if len(text) <= max_chars:
+                new_subs.append(s)
+                continue
+                
+            words = text.split(" ")
+            segments = []
+            current_seg = []
+            current_len = 0
+            
+            for w in words:
+                if current_len + len(w) + 1 > max_chars and current_seg:
+                    segments.append(" ".join(current_seg))
+                    current_seg = [w]
+                    current_len = len(w)
+                else:
+                    current_seg.append(w)
+                    current_len += len(w) + 1 if current_len > 0 else len(w)
+                    
+            if current_seg:
+                segments.append(" ".join(current_seg))
+                
+            if split_to_blocks and len(segments) > 1:
+                total_len = sum(len(seg) for seg in segments)
+                
+                start_ms = time_to_ms(s["start"])
+                end_ms = time_to_ms(s["end"])
+                total_dur = end_ms - start_ms
+                
+                current_start_ms = start_ms
+                for i, seg in enumerate(segments):
+                    s_copy = s.copy()
+                    s_copy["text"] = seg
+                    
+                    if total_len > 0:
+                        seg_dur = total_dur * (len(seg) / total_len)
+                    else:
+                        seg_dur = total_dur / len(segments)
+                        
+                    seg_start_ms = current_start_ms
+                    seg_end_ms = current_start_ms + seg_dur
+                    
+                    if i == len(segments) - 1:
+                        seg_end_ms = end_ms # Ensure last segment ends exactly at end_ms
+                        
+                    s_copy["start"] = ms_to_time(seg_start_ms, sep=".")
+                    s_copy["end"] = ms_to_time(seg_end_ms, sep=".")
+                    
+                    new_subs.append(s_copy)
+                    current_start_ms = seg_end_ms
+            else:
+                s_copy = s.copy()
+                s_copy["text"] = "\n".join(segments)
+                new_subs.append(s_copy)
+                
+        final_text = SubtitleProcessor.to_format(new_subs, detected_fmt)
+        self.output_text.delete("0.0", "end")
+        self.output_text.insert("0.0", final_text)
+        messagebox.showinfo(self.tr("Success"), self.tr("Split complete!"))
