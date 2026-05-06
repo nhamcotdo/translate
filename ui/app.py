@@ -3,6 +3,7 @@ import customtkinter as ctk
 from core.config_manager import ConfigManager
 from ui.tabs.settings_tab import SettingsTab
 from ui.tabs.translate_tab import TranslateTab
+from ui.tabs.translate_zh_vi_tab import TranslateZhViTab
 from ui.tabs.extract_tab import ExtractTab
 from ui.tabs.summary_tab import SummaryTab
 from ui.tabs.format_tab import FormatTab
@@ -29,6 +30,7 @@ class App(ctk.CTk):
         self.tabview.grid(row=0, column=0, padx=12, pady=12, sticky="nsew")
 
         self.tabview.add(self.tr("Translate"))
+        self.tabview.add(self.tr("Translate (ZH->VI)"))
         self.tabview.add(self.tr("Extract Subtitles"))
         self.tabview.add(self.tr("Video Summary"))
         self.tabview.add(self.tr("Format Subtitles"))
@@ -38,6 +40,9 @@ class App(ctk.CTk):
         # Instantiate tabs
         self.translate_tab = TranslateTab(self.tabview.tab(self.tr("Translate")), self.config_manager)
         self.translate_tab.pack(expand=True, fill="both")
+
+        self.translate_zh_vi_tab = TranslateZhViTab(self.tabview.tab(self.tr("Translate (ZH->VI)")), self.config_manager)
+        self.translate_zh_vi_tab.pack(expand=True, fill="both")
 
         self.extract_tab = ExtractTab(self.tabview.tab(self.tr("Extract Subtitles")), self.config_manager)
         self.extract_tab.pack(expand=True, fill="both")
