@@ -73,7 +73,7 @@ class TranslateTab(ctk.CTkFrame):
         self.style_dropdown = ctk.CTkOptionMenu(
             ctx_header, 
             variable=self.style_var, 
-            values=["Custom/Manual", "Short Drama", "Historical", "Anime", "Documentary", "Tech/Tutorial", "Comedy", "Vlog", "News"],
+            values=["Custom/Manual", "Short Drama", "Historical", "Anime", "Documentary", "Tech/Tutorial", "Comedy", "Vlog", "News", "Movie Review"],
             command=self.on_style_selected,
             cursor="hand2"
         )
@@ -191,7 +191,8 @@ class TranslateTab(ctk.CTkFrame):
             "Tech/Tutorial": "This is a technical video/tutorial about programming or technology. Ensure all technical terms are translated accurately or kept in English if that is the industry standard. The tone should be professional, instructional, and clear.",
             "Comedy": "This is a comedy show or stand-up routine. Translate the jokes naturally to match the target language's sense of humor. Use cultural equivalents to preserve the punchlines, keeping the language informal.",
             "Vlog": "This is a casual daily vlog or YouTube video. The translation should be highly conversational, energetic, and relatable. Use everyday language, common internet slang, and friendly expressions.",
-            "News": "This is a news broadcast or journalistic report. The translation must be highly objective, formal, and strictly factual. Maintain a professional anchor-style tone without emotional bias."
+            "News": "This is a news broadcast or journalistic report. The translation must be highly objective, formal, and strictly factual. Maintain a professional anchor-style tone without emotional bias.",
+            "Movie Review": "This is a movie recap or review video. Translate with an engaging, narrative, and storytelling tone. Keep the descriptions expressive and captivating for viewers."
         }
         
         if value in styles:

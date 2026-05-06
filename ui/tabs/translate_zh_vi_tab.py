@@ -73,7 +73,7 @@ class TranslateZhViTab(ctk.CTkFrame):
         self.style_dropdown = ctk.CTkOptionMenu(
             ctx_header, 
             variable=self.style_var, 
-            values=["Phim Ngắn (Short Drama)", "Tiên Hiệp (Xianxia)", "Hiện Đại (Modern)", "Hoạt Hình (Donghua)", "Custom/Manual"],
+            values=["Phim Ngắn (Short Drama)", "Tiên Hiệp (Xianxia)", "Hiện Đại (Modern)", "Hoạt Hình (Donghua)", "Review Phim (Movie Recap)", "Custom/Manual"],
             command=self.on_style_selected,
             cursor="hand2"
         )
@@ -188,7 +188,8 @@ class TranslateZhViTab(ctk.CTkFrame):
             "Phim Ngắn (Short Drama)": "Đây là phụ đề của một bộ phim ngắn hiện đại (short drama) Trung Quốc. Dịch sang tiếng Việt một cách tự nhiên, ngôn ngữ hiện đại, có thể dùng từ lóng giới trẻ. Câu văn cần súc tích, dứt khoát.",
             "Tiên Hiệp (Xianxia)": "Đây là phụ đề phim cổ trang tiên hiệp/kiếm hiệp Trung Quốc. Dịch sang tiếng Việt với phong cách trang trọng, mang âm hưởng Hán Việt. Sử dụng chính xác các đại từ nhân xưng cổ đại (tại hạ, các hạ, sư tôn, đồ đệ, muội muội...).",
             "Hiện Đại (Modern)": "Đây là phụ đề phim ngôn tình/tâm lý xã hội hiện đại Trung Quốc. Dịch sang tiếng Việt tự nhiên, phù hợp với ngữ cảnh giao tiếp hàng ngày. Chú ý giữ đúng các xưng hô (anh, em, tổng tài, cô nại nại...).",
-            "Hoạt Hình (Donghua)": "Đây là phụ đề phim hoạt hình (Donghua) Trung Quốc. Dịch sang tiếng Việt thân thiện, dễ hiểu, phù hợp với đối tượng khán giả trẻ hoặc gia đình."
+            "Hoạt Hình (Donghua)": "Đây là phụ đề phim hoạt hình (Donghua) Trung Quốc. Dịch sang tiếng Việt thân thiện, dễ hiểu, phù hợp với đối tượng khán giả trẻ hoặc gia đình.",
+            "Review Phim (Movie Recap)": "Đây là phụ đề của một video tóm tắt/review phim. Dịch sang tiếng Việt với giọng điệu kể chuyện hấp dẫn, lôi cuốn và diễn cảm. Ngôn từ cần sinh động để thu hút người xem."
         }
         
         if value in styles:
